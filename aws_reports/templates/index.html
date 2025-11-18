@@ -1,0 +1,52 @@
+{% extends "layout.html" %}
+
+{% block title %}Select Brand{% endblock %}
+
+{% block content %}
+  <h1 class="text-3xl font-bold mb-6">Select a brand</h1>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="mb-4 space-y-2">
+        {% for category, message in messages %}
+          <div class="alert {{ 'alert-error' if category == 'error' else 'alert-success' }}">
+            <span>{{ message }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <form
+    method="post"
+    action="{{ url_for('choose_brand') }}"
+    class="card bg-base-100 shadow-xl max-w-md"
+  >
+    <div class="card-body gap-4">
+      <label class="form-control w-full">
+        <div class="label">
+          <span class="label-text font-semibold">Brand</span>
+        </div>
+        <select
+          name="brand_id"
+          class="select select-bordered w-full"
+          required
+        >
+          <option value="" disabled selected>Pick a brand…</option>
+          {% for brand in brands %}
+            <option value="{{ brand.id }}">{{ brand.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <div class="card-actions justify-between mt-4">
+        <a class="btn btn-ghost" href="{{ url_for('manage_brands') }}">
+          Manage brands
+        </a>
+        <button class="btn btn-primary" type="submit">
+          Go to brand
+        </button>
+      </div>
+    </div>
+  </form>
+{% endblock %}

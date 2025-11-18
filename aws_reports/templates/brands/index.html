@@ -1,0 +1,28 @@
+
+{% extends "layout.html" %}
+
+{% block title %}{{ brand.name }} – Brand Index{% endblock %}
+
+{% block content %}
+  <h1 class="text-3xl font-bold mb-4">{{ brand.name }}</h1>
+
+  <p class="mb-6 text-sm text-base-content/70">
+    Brand ID: <code>{{ brand.id }}</code>
+  </p>
+
+  <div class="grid gap-4">
+    <div class="flex gap-2">
+      <a class="btn btn-outline" href="{{ url_for('index') }}">Change brand</a>
+      <a class="btn btn-secondary" href="{{ url_for('edit_brand', brand_id=brand.id) }}">
+        Edit brand
+      </a>
+    </div>
+
+    <div class="card bg-base-100 shadow">
+      <div class="card-body">
+        <h2 class="card-title">Brand dashboard</h2>
+        <p>TODO: show reports and stats for {{ brand.name }} here.</p>
+      </div>
+    </div>
+  </div>
+{% endblock %}

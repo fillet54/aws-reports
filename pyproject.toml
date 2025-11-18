@@ -1,0 +1,38 @@
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aws-reporting"
+version = "0.1.0"
+description = "Reporting tool and job queue for Amazon orders for a single brand."
+readme = "README.md"
+requires-python = ">=3.14"
+license = { text = "MIT" }
+
+authors = [
+  { name = "Phillip Gomez", email = "fillet54@gmail.com" }
+]
+
+dependencies = [
+  "flask>=3.0,<4.0",
+  "docopt>=0.6,<0.7",
+]
+
+# Optional: console script to run your app or queue manager
+# (Adjust the module + function path as needed)
+[project.scripts]
+aws-reporting = "aws_reporting.__main__:main"
+
+[project.urls]
+Homepage = "https://example.com/aws-reporting"
+Repository = "https://github.com/yourname/aws-reporting"
+
+[tool.setuptools]
+# If you're using a src-layout, uncomment and adjust:
+# package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["aws_reporting*"]

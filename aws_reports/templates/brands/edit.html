@@ -1,0 +1,74 @@
+
+{% extends "layout.html" %}
+
+{% block title %}
+  {% if is_new %}New Brand{% else %}Edit Brand – {{ brand.name }}{% endif %}
+{% endblock %}
+
+{% block content %}
+  <h1 class="text-3xl font-bold mb-6">
+    {% if is_new %}New Brand{% else %}Edit Brand{% endif %}
+  </h1>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="mb-4 space-y-2">
+        {% for category, message in messages %}
+          <div class="alert {{ 'alert-error' if category == 'error' else 'alert-success' }}">
+            <span>{{ message }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <form
+    method="post"
+    action="{{ url_for('save_brand') }}"
+    class="card bg-base-100 shadow-xl max-w-md"
+  >
+    <div class="card-body gap-4">
+      <input type="hidden" name="original_id" value="{{ brand.id }}">
+
+      <label class="form-control w-full">
+        <div class="label">
+          <span class="label-text font-semibold">Brand ID (slug)</span>
+        </div>
+        <input
+          type="text"
+          name="brand_id"
+          class="input input-bordered w-full"
+          value="{{ brand.id }}"
+          placeholder="e.g. my-brand"
+          required
+        >
+        <div class="label">
+          <span class="label-text-alt text-xs text-base-content/70">
+            Used in URLs: /brands/&lt;id&gt;. Keep it stable.
+          </span>
+        </div>
+      </label>
+
+      <label class="form-control w-full">
+        <div class="label">
+          <span class="label-text font-semibold">Brand Name</span>
+        </div>
+        <input
+          type="text"
+          name="name"
+          class="input input-bordered w-full"
+          value="{{ brand.name }}"
+          placeholder="My Brand"
+          required
+        >
+      </label>
+
+      <div class="card-actions justify-between mt-4">
+        <a class="btn btn-ghost" href="{{ url_for('manage_brands') }}">Cancel</a>
+        <button class="btn btn-primary" type="submit">
+          {% if is_new %}Create{% else %}Save{% endif %}
+        </button>
+      </div>
+    </div>
+  </form>
+{% endblock %}

@@ -1,0 +1,43 @@
+
+{% extends "layout.html" %}
+
+{% block title %}Manage Brands{% endblock %}
+
+{% block content %}
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-3xl font-bold">Manage brands</h1>
+    <a class="btn btn-primary" href="{{ url_for('new_brand') }}">New brand</a>
+  </div>
+
+  {% if brands %}
+    <div class="overflow-x-auto">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th class="text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for brand in brands %}
+            <tr>
+              <td><code>{{ brand.id }}</code></td>
+              <td>{{ brand.name }}</td>
+              <td class="text-right">
+                <a class="btn btn-xs btn-ghost" href="{{ url_for('brand_index', brand_id=brand.id) }}">
+                  View
+                </a>
+                <a class="btn btn-xs btn-ghost" href="{{ url_for('edit_brand', brand_id=brand.id) }}">
+                  Edit
+                </a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>No brands yet. <a class="link" href="{{ url_for('new_brand') }}">Create one</a>.</p>
+  {% endif %}
+{% endblock %}
