@@ -3,9 +3,8 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TypedDict, List, Optional
-from datetime import datetime
-from typing import Any, Dict, List
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, TypedDict
 
 from flask import (
     Flask,
@@ -247,6 +246,55 @@ def brand_reports(brand_id: str):
         brand=brand,
         monthly_summaries=monthly_summaries,
         n_months=n_months,
+    )
+
+
+@app.route("/brands/<brand_id>/reports/weekly")
+def brand_weekly_reports(brand_id: str):
+    """
+    Show weekly status summary for a configurable date range.
+    """
+    brand = get_brand_or_404(brand_id)
+
+    today = datetime.utcnow().date()
+    default_start = (today - timedelta(days=28)).isoformat()
+    default_end = today.isoformat()
+
+    input_start = request.args.get("start_date", default_start)
+    input_end = request.args.get("end_date", default_end)
+
+    try:
+        start_date = datetime.fromisoformat(input_start).date()
+        end_date = datetime.fromisoformat(input_end).date()
+        if start_date > end_date:
+            raise ValueError("Start date must be before end date.")
+    except ValueError:
+        flash(
+            "Invalid date range. Use YYYY-MM-DD and ensure the start date precedes the end date.",
+            "error",
+        )
+        start_date = datetime.fromisoformat(default_start).date()
+        end_date = datetime.fromisoformat(default_end).date()
+
+    conn = get_brand_db(brand_id)
+    try:
+        weekly_summaries: List[Dict[str, Any]] = reports.get_weekly_status_summary(
+            conn,
+            start_date=start_date.isoformat(),
+            end_date=end_date.isoformat(),
+        )
+    except ValueError as exc:
+        flash(str(exc), "error")
+        weekly_summaries = []
+    finally:
+        conn.close()
+
+    return render_template(
+        "brands/weekly_reports.html",
+        brand=brand,
+        weekly_summaries=weekly_summaries,
+        start_date=start_date.isoformat(),
+        end_date=end_date.isoformat(),
     )
 
 # -------------------------------------------------------------------

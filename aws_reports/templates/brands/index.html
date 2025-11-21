@@ -30,7 +30,10 @@
           Edit brand
         </a>
         <a class="btn btn-primary" href="{{ url_for('brand_reports', brand_id=brand.id) }}">
-          View reports
+          Monthly reports
+        </a>
+        <a class="btn btn-primary btn-outline" href="{{ url_for('brand_weekly_reports', brand_id=brand.id) }}">
+          Weekly report
         </a>
         <a class="btn btn-primary" href="{{ url_for('asin_meta_index', brand_id=brand.id) }}">
           Edit ASINs 
