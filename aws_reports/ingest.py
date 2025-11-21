@@ -1,5 +1,6 @@
 
 import csv
+import json
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -7,7 +8,7 @@ import shutil
 import hashlib
 
 
-from .config import BRAND_PATH, BRAND_ARCHIVE_PATH 
+from .config import BRAND_PATH, BRAND_ARCHIVE_PATH, BRANDS_FILE 
 
 
 def normalize_date(dt_str):
@@ -148,12 +149,95 @@ def apply_report_to_db(conn, csv_path: Path) -> int:
     return len(rows)
 
 
+def _extract_name(product_name: str) -> str | None:
+    if not product_name:
+        return None
+    name = product_name.split(",", 1)[0].strip()
+    if name == "-":
+        return None
+    return name or None
+
+
+def _strip_brand_prefix(name: str | None, brand_name: str | None) -> str | None:
+    if not name or not brand_name:
+        return name
+    brand_clean = brand_name.strip()
+    if not brand_clean:
+        return name
+    name_lower = name.lower()
+    brand_lower = brand_clean.lower()
+    if name_lower.startswith(brand_lower):
+        stripped = name[len(brand_clean):].lstrip(" ,:-")
+        return stripped or None
+    return name
+
+
+def _get_brand_name(brand_id: str) -> str | None:
+    if not BRANDS_FILE.exists():
+        return None
+    try:
+        with BRANDS_FILE.open("r", encoding="utf-8") as f:
+            brands = json.load(f)
+        for b in brands:
+            if isinstance(b, dict) and str(b.get("id")) == str(brand_id):
+                return b.get("name")
+    except Exception:
+        return None
+    return None
+
+
+def ensure_asin_meta(conn, brand_id: str) -> None:
+    """
+    Create asin_meta rows for any ASINs seen in orders that do not already
+    have metadata. Uses the first segment of product_name (split on ",") as
+    the title_override.
+    """
+    brand_name = _get_brand_name(brand_id)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT o.asin, MIN(o.product_name) AS product_name
+        FROM orders o
+        LEFT JOIN asin_meta m ON o.asin = m.asin
+        WHERE o.asin IS NOT NULL
+          AND TRIM(o.asin) <> ''
+          AND m.asin IS NULL
+          AND o.product_name IS NOT NULL
+          AND TRIM(o.product_name) <> ''
+          AND TRIM(o.product_name) <> '-'
+        GROUP BY o.asin
+        """
+    )
+    rows = cur.fetchall()
+
+    to_insert = []
+    for asin, product_name in rows:
+        name = _extract_name(product_name)
+        name = _strip_brand_prefix(name, brand_name)
+        if not name:
+            continue
+        to_insert.append((asin, name))
+
+    if not to_insert:
+        return
+
+    with conn:
+        conn.executemany(
+            """
+            INSERT OR IGNORE INTO asin_meta (asin, title_override)
+            VALUES (?, ?)
+            """,
+            to_insert,
+        )
+
+
 def ingest_and_archive(conn, csv_path_str: str, brand_id: str):
     csv_path = Path(csv_path_str).resolve()
 
     ARCHIVE_DIR = BRAND_ARCHIVE_PATH(brand_id)
 
     row_count = apply_report_to_db(conn, csv_path)
+    ensure_asin_meta(conn, brand_id)
 
     # Archive file with timestamp prefix
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -174,4 +258,3 @@ def ingest_and_archive(conn, csv_path_str: str, brand_id: str):
 
     conn.close()
     print(f"Ingested {row_count} rows from {csv_path.name}, archived to {archived_path}")
-
