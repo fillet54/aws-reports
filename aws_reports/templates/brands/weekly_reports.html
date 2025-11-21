@@ -147,7 +147,7 @@
                             <code>{{ asin }}</code>
                             <a
                               class="btn btn-xs btn-ghost"
-                              href="{{ url_for('asin_meta_edit', brand_id=brand['id'], asin=asin) }}"
+                              href="{{ url_for('asin_meta_edit', brand_id=brand['id'], asin=asin, next=request.full_path) }}"
                               title="Edit ASIN"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg"

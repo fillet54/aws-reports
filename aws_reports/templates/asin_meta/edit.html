@@ -28,6 +28,7 @@
     class="card bg-base-100 shadow-xl max-w-2xl"
   >
     <div class="card-body grid gap-4 md:grid-cols-2">
+      <input type="hidden" name="next" value="{{ next_url or '' }}">
       <input type="hidden" name="original_asin" value="{{ item.asin }}">
 
       <label class="form-control w-full md:col-span-1">
@@ -132,7 +133,7 @@
       </label>
 
       <div class="card-actions md:col-span-2 justify-between mt-4">
-        <a class="btn btn-ghost" href="{{ url_for('asin_meta_index', brand_id=brand['id']) }}">Cancel</a>
+        <a class="btn btn-ghost" href="{{ next_url or url_for('asin_meta_index', brand_id=brand['id']) }}">Cancel</a>
         <button class="btn btn-primary" type="submit">
           {% if is_new %}Create{% else %}Save{% endif %}
         </button>

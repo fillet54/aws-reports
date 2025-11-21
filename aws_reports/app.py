@@ -69,6 +69,16 @@ def get_brand_or_404(brand_id: str) -> Brand:
     return brand
 
 
+def _safe_next_url() -> Optional[str]:
+    """
+    Return a safe in-app URL for redirects (only allow absolute paths).
+    """
+    candidate = request.form.get("next") or request.args.get("next")
+    if candidate and candidate.startswith("/") and not candidate.startswith("//"):
+        return candidate
+    return None
+
+
 # -------------------------------------------------------------------
 # Routes
 # -------------------------------------------------------------------
@@ -356,7 +366,7 @@ def asin_meta_new(brand_id: str):
         "launch_date": "",
         "notes": "",
     }
-    return render_template("asin_meta/edit.html", brand=brand, item=item, is_new=True)
+    return render_template("asin_meta/edit.html", brand=brand, item=item, is_new=True, next_url=_safe_next_url())
 
 
 
@@ -378,11 +388,12 @@ def asin_meta_edit(brand_id: str, asin: str):
     # cost might be None
     item["cost"] = "" if item["cost"] is None else item["cost"]
 
-    return render_template("asin_meta/edit.html", brand=brand, item=item, is_new=False)
+    return render_template("asin_meta/edit.html", brand=brand, item=item, is_new=False, next_url=_safe_next_url())
 
 
 @app.route("/brands/<brand_id>/asin-meta/save", methods=["POST"])
 def asin_meta_save(brand_id: str):
+    next_url = _safe_next_url()
     brand = get_brand_or_404(brand_id)
     original_asin = request.form.get("original_asin", "").strip()
     asin_value = request.form.get("asin", "").strip()
@@ -397,8 +408,8 @@ def asin_meta_save(brand_id: str):
     if not asin_value:
         flash("ASIN is required.", "error")
         if original_asin:
-            return redirect(url_for("asin_meta_edit", brand_id=brand_id, asin=original_asin))
-        return redirect(url_for("asin_meta_new" , brand_id=brand_id))
+            return redirect(url_for("asin_meta_edit", brand_id=brand_id, asin=original_asin, next=next_url))
+        return redirect(url_for("asin_meta_new" , brand_id=brand_id, next=next_url))
 
     # cost is optional
     cost: Any
@@ -410,8 +421,8 @@ def asin_meta_save(brand_id: str):
         except ValueError:
             flash("Cost must be a number.", "error")
             if original_asin:
-                return redirect(url_for("asin_meta_edit", brand_id=brand_id, asin=original_asin))
-            return redirect(url_for("asin_meta_new", brand_id=brand_id))
+                return redirect(url_for("asin_meta_edit", brand_id=brand_id, asin=original_asin, next=next_url))
+            return redirect(url_for("asin_meta_new", brand_id=brand_id, next=next_url))
 
     conn = get_brand_db(brand_id) 
     try:
@@ -437,6 +448,8 @@ def asin_meta_save(brand_id: str):
         conn.close()
 
     flash("ASIN metadata saved.", "success")
+    if next_url:
+        return redirect(next_url)
     return redirect(url_for("asin_meta_index", brand_id=brand_id))
 
 
