@@ -102,6 +102,7 @@ def brand_index(brand_id: str):
         ytd_sales = reports.get_sales_total(conn, ytd_start.isoformat(), today.isoformat())
         mtd_sales = reports.get_sales_total(conn, mtd_start.isoformat(), today.isoformat())
         week_sales = reports.get_sales_total(conn, week_start.isoformat(), today.isoformat())
+        latest_updated_date = reports.get_latest_last_updated_date(conn)
     finally:
         conn.close()
 
@@ -115,7 +116,12 @@ def brand_index(brand_id: str):
         "ytd_start": ytd_start.isoformat(),
     }
 
-    return render_template("brands/index.html", brand=brand, sales_summary=sales_summary)
+    return render_template(
+        "brands/index.html",
+        brand=brand,
+        sales_summary=sales_summary,
+        latest_updated_date=latest_updated_date,
+    )
 
 
 # -------------------------------------------------------------------

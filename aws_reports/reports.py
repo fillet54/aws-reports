@@ -287,3 +287,17 @@ def get_sales_total(conn, start_date: str, end_date: str) -> float:
     )
     row = cur.fetchone()
     return float(row[0]) if row and row[0] is not None else 0.0
+
+
+def get_latest_last_updated_date(conn) -> str | None:
+    """Return the most recent date portion of last_updated_date in orders."""
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT MAX(date(last_updated_date))
+        FROM orders
+        WHERE last_updated_date IS NOT NULL
+        """
+    )
+    row = cur.fetchone()
+    return row[0] if row and row[0] else None

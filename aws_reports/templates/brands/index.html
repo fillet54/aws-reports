@@ -95,6 +95,14 @@
             Upload a CSV orders report for this brand. The data will be imported into
             the SQLite database, and the original CSV will be archived.
           </p>
+          {% if latest_updated_date %}
+            <div class="alert alert-info mb-3">
+              <div>
+                <p class="font-semibold">Latest last-updated-date in DB</p>
+                <p class="text-sm">Up to {{ latest_updated_date }} (use this when picking an export range).</p>
+              </div>
+            </div>
+          {% endif %}
 
           <form
             method="post"
