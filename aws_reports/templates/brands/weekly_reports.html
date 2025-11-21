@@ -126,15 +126,15 @@
               <h3 class="font-semibold mb-2">By ASIN</h3>
               {% if week.by_asin %}
                 <div class="overflow-x-auto">
-                  <table class="table table-sm">
+                  <table class="table table-sm" data-sortable="true">
                     <thead>
                       <tr>
-                        <th>ASIN</th>
-                        <th>Description</th>
-                        <th class="text-right">Shipped units</th>
-                        <th class="text-right">Shipped sales</th>
-                        <th class="text-right">Unshipped units</th>
-                        <th class="text-right">Unshipped sales</th>
+                        <th data-sort-key="asin" class="cursor-pointer">ASIN</th>
+                        <th data-sort-key="desc" class="cursor-pointer">Description</th>
+                        <th data-sort-key="shipped_units" data-sort-type="number" class="text-right cursor-pointer">Shipped units</th>
+                        <th data-sort-key="shipped_sales" data-sort-type="number" class="text-right cursor-pointer">Shipped sales</th>
+                        <th data-sort-key="unshipped_units" data-sort-type="number" class="text-right cursor-pointer">Unshipped units</th>
+                        <th data-sort-key="unshipped_sales" data-sort-type="number" class="text-right cursor-pointer">Unshipped sales</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -186,4 +186,58 @@
       <span>No data found in this date range. Try importing an orders report first.</span>
     </div>
   {% endif %}
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    (() => {
+      function setupSortableTables() {
+        document.querySelectorAll('table[data-sortable="true"]').forEach((table) => {
+          const tbody = table.querySelector('tbody');
+          if (!tbody) return;
+          const headers = table.querySelectorAll('thead th[data-sort-key]');
+          table.querySelectorAll('thead th[data-sort-key]').forEach((th, idx) => {
+            th.addEventListener('click', () => {
+              const currentDir = th.dataset.sortDir === 'asc' ? 'desc' : 'asc';
+              th.dataset.sortDir = currentDir;
+              const type = th.dataset.sortType || 'text';
+              const rows = Array.from(tbody.querySelectorAll('tr'));
+              const val = (row) => {
+                const cell = row.children[idx];
+                const text = cell ? cell.innerText.trim() : '';
+                if (type === 'number') {
+                  const num = parseFloat(text.replace(/[^0-9.-]/g, ''));
+                  return isNaN(num) ? 0 : num;
+                }
+                return text.toLowerCase();
+              };
+              rows.sort((a, b) => {
+                const av = val(a);
+                const bv = val(b);
+                if (av === bv) return 0;
+                if (currentDir === 'asc') {
+                  return av > bv ? 1 : -1;
+                }
+                return av < bv ? 1 : -1;
+              });
+              rows.forEach((r) => tbody.appendChild(r));
+
+              headers.forEach((h) => {
+                if (h !== th) h.dataset.sortDir = '';
+                h.querySelectorAll('.sort-indicator').forEach((el) => el.textContent = '');
+              });
+              let indicator = th.querySelector('.sort-indicator');
+              if (!indicator) {
+                indicator = document.createElement('span');
+                indicator.className = 'sort-indicator ml-1 text-xs opacity-70';
+                th.appendChild(indicator);
+              }
+              indicator.textContent = currentDir === 'asc' ? '▲' : '▼';
+            });
+          });
+        });
+      }
+      document.addEventListener('DOMContentLoaded', setupSortableTables);
+    })();
+  </script>
 {% endblock %}
