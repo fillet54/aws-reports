@@ -5,8 +5,17 @@ from pathlib import Path
 import shutil
 import hashlib
 
-DB_PATH = Path("data/orders.sqlite3")
-ARCHIVE_DIR = Path("data/archive")
+from .config import BRAND_PATH 
+
+
+def get_brand_db(brand_id: str):
+    conn = sqlite3.connect(BRAND_PATH(brand_id) / "orders.sqlite")
+    conn.row_factory = sqlite3.Row
+
+    # For now just always init
+    init_db(conn)
+
+    return conn
 
 
 def init_db(conn):

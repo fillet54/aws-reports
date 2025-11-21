@@ -1,0 +1,142 @@
+
+{% extends "layout.html" %}
+
+{% block title %}
+  {% if is_new %}New ASIN{% else %}Edit ASIN {{ item.asin }}{% endif %}
+{% endblock %}
+
+{% block content %}
+  <h1 class="text-3xl font-bold mb-6">
+    {% if is_new %}New ASIN{% else %}Edit ASIN{% endif %}
+  </h1>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="mb-4 space-y-2">
+        {% for category, message in messages %}
+          <div class="alert {{ 'alert-error' if category == 'error' else 'alert-success' }}">
+            <span>{{ message }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <form
+    method="post"
+    action="{{ url_for('asin_meta_save', brand_id=brand['id']) }}"
+    class="card bg-base-100 shadow-xl max-w-2xl"
+  >
+    <div class="card-body grid gap-4 md:grid-cols-2">
+      <input type="hidden" name="original_asin" value="{{ item.asin }}">
+
+      <label class="form-control w-full md:col-span-1">
+        <div class="label">
+          <span class="label-text font-semibold">ASIN</span>
+        </div>
+        <input
+          type="text"
+          name="asin"
+          class="input input-bordered w-full"
+          value="{{ item.asin }}"
+          required
+        >
+      </label>
+
+      <label class="form-control w-full md:col-span-1">
+        <div class="label">
+          <span class="label-text font-semibold">Brand</span>
+        </div>
+        <input
+          type="text"
+          name="brand"
+          class="input input-bordered w-full"
+          value="{{ item.brand }}"
+          placeholder="Brand name"
+        >
+      </label>
+
+      <label class="form-control w-full md:col-span-2">
+        <div class="label">
+          <span class="label-text font-semibold">Title override</span>
+        </div>
+        <input
+          type="text"
+          name="title_override"
+          class="input input-bordered w-full"
+          value="{{ item.title_override }}"
+          placeholder="Optional title override for reports"
+        >
+      </label>
+
+      <label class="form-control w-full">
+        <div class="label">
+          <span class="label-text font-semibold">Category</span>
+        </div>
+        <input
+          type="text"
+          name="category"
+          class="input input-bordered w-full"
+          value="{{ item.category }}"
+        >
+      </label>
+
+      <label class="form-control w-full">
+        <div class="label">
+          <span class="label-text font-semibold">Subcategory</span>
+        </div>
+        <input
+          type="text"
+          name="subcategory"
+          class="input input-bordered w-full"
+          value="{{ item.subcategory }}"
+        >
+      </label>
+
+      <label class="form-control w-full">
+        <div class="label">
+          <span class="label-text font-semibold">Cost</span>
+        </div>
+        <input
+          type="number"
+          step="0.01"
+          name="cost"
+          class="input input-bordered w-full"
+          value="{{ item.cost }}"
+          placeholder="e.g. 4.50"
+        >
+      </label>
+
+      <label class="form-control w-full">
+        <div class="label">
+          <span class="label-text font-semibold">Launch date</span>
+        </div>
+        <input
+          type="date"
+          name="launch_date"
+          class="input input-bordered w-full"
+          value="{{ item.launch_date }}"
+        >
+      </label>
+
+      <label class="form-control w-full md:col-span-2">
+        <div class="label">
+          <span class="label-text font-semibold">Notes</span>
+        </div>
+        <textarea
+          name="notes"
+          class="textarea textarea-bordered w-full"
+          rows="4"
+          placeholder="Any extra notes about this ASIN"
+        >{{ item.notes }}</textarea>
+      </label>
+
+      <div class="card-actions md:col-span-2 justify-between mt-4">
+        <a class="btn btn-ghost" href="{{ url_for('asin_meta_index', brand_id=brand['id']) }}">Cancel</a>
+        <button class="btn btn-primary" type="submit">
+          {% if is_new %}Create{% else %}Save{% endif %}
+        </button>
+      </div>
+    </div>
+  </form>
+{% endblock %}

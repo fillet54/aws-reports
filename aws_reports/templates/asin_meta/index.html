@@ -1,0 +1,81 @@
+{% extends "layout.html" %}
+
+{% block title %}ASIN Metadata{% endblock %}
+
+{% block content %}
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-3xl font-bold">ASIN metadata</h1>
+    
+    <div class="flex gap-2">
+    <a class="btn btn-primary" href="{{ url_for('asin_meta_new', brand_id=brand['id']) }}">New ASIN</a>
+    <a class="btn btn-outline" href="{{ url_for('brand_index', brand_id=brand.id) }}">
+        Back to brand
+    </a>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="mb-4 space-y-2">
+        {% for category, message in messages %}
+          <div class="alert {{ 'alert-error' if category == 'error' else 'alert-success' }}">
+            <span>{{ message }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% if items %}
+    <div class="overflow-x-auto">
+      <table class="table table-sm">
+        <thead>
+          <tr>
+            <th>ASIN</th>
+            <th>Title override</th>
+            <th>Brand</th>
+            <th>Category</th>
+            <th>Subcategory</th>
+            <th class="text-right">Cost</th>
+            <th class="text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+            <tr>
+              <td><code>{{ item.asin }}</code></td>
+              <td>{{ item.title_override or "" }}</td>
+              <td>{{ item.brand or "" }}</td>
+              <td>{{ item.category or "" }}</td>
+              <td>{{ item.subcategory or "" }}</td>
+              <td class="text-right">
+                {% if item.cost is not none %}
+                  {{ "%.2f"|format(item.cost) }}
+                {% endif %}
+              </td>
+              <td class="text-right">
+                <a class="btn btn-xs btn-ghost" href="{{ url_for('asin_meta_edit', brand_id=brand['id'], asin=item.asin) }}">
+                  Edit
+                </a>
+                <form
+                  method="post"
+                  action="{{ url_for('asin_meta_delete_route', brand_id=brand['id'], asin=item.asin) }}"
+                  class="inline"
+                  onsubmit="return confirm('Delete ASIN {{ item.asin }}?');"
+                >
+                  <button class="btn btn-xs btn-error" type="submit">
+                    Delete
+                  </button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="alert alert-info">
+      <span>No ASIN metadata yet. Click “New ASIN” to create one.</span>
+    </div>
+  {% endif %}
+{% endblock %}

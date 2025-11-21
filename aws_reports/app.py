@@ -4,6 +4,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import TypedDict, List, Optional
+from datetime import datetime
+from typing import Any, Dict, List
 
 from flask import (
     Flask,
@@ -15,7 +17,9 @@ from flask import (
     flash,
 )
 
-from .userdirs import user_data_dir  # adjust import if needed
+from . import ingest, reports, asin_meta
+from .config import BRANDS_FILE, UPLOAD_TMP_DIR
+from .db import get_brand_db
 
 app = Flask(__name__)
 app.secret_key = "change-me"  # needed for flash()
@@ -27,12 +31,6 @@ app.secret_key = "change-me"  # needed for flash()
 class Brand(TypedDict):
     id: str
     name: str
-
-
-DATA_DIR: Path = user_data_dir("AwsReporting")
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-BRANDS_FILE: Path = DATA_DIR / "brands.json"
 
 
 def load_brands() -> List[Brand]:
@@ -165,6 +163,217 @@ def save_brand():
     save_brands(brands)
 
     return redirect(url_for("brand_index", brand_id=brand_id))
+
+
+# -------------------------------------------------------------------
+# Import / View Brand Orders
+# -------------------------------------------------------------------
+
+@app.route("/brands/<brand_id>/import", methods=["POST"])
+def import_orders_report(brand_id: str):
+    """
+    Upload a CSV orders report for this brand and import it.
+
+    Steps:
+      1. Save the uploaded file to a temp location in the user data dir.
+      2. Open the SQLite DB.
+      3. Ensure schema via db.init_db(conn).
+      4. Call ingest.ingest_and_archive(conn, csv_path).
+    """
+    brand = get_brand_or_404(brand_id)  # 404 if brand doesn't exist
+
+    file = request.files.get("report_file")
+    if not file or file.filename == "":
+        flash("Please choose a CSV file to upload.", "error")
+        return redirect(url_for("brand_index", brand_id=brand["id"]))
+
+    # Very simple extension check, you can make this stricter if you like
+    filename = file.filename
+    if not filename.lower().endswith(".csv"):
+        flash("Only .csv files are supported.", "error")
+        return redirect(url_for("brand_index", brand_id=brand["id"]))
+
+    # Create a unique temp file name (brand + timestamp + original name)
+    ts = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+    safe_name = filename.replace("/", "_").replace("\\", "_")
+    tmp_path = UPLOAD_TMP_DIR / f"{brand['id']}-{ts}-{safe_name}"
+
+    file.save(tmp_path)
+
+    try:
+        # Open SQLite DB
+        conn = get_brand_db(brand_id)
+
+        try:
+            # Ingest + archive report
+            # (Assuming ingest_and_archive does its own archiving of tmp_path)
+            ingest.ingest_and_archive(conn, tmp_path, brand_id)
+
+            conn.commit()
+            flash("Orders report imported successfully.", "success")
+        finally:
+            conn.close()
+
+    except Exception as exc:
+        # In a real app you'd log this
+        flash(f"Failed to import report: {exc}", "error")
+
+    return redirect(url_for("brand_index", brand_id=brand["id"]))
+
+
+@app.route("/brands/<brand_id>/reports")
+def brand_reports(brand_id: str):
+    """
+    Show monthly status summary for this brand.
+    Uses reports.get_monthly_status_summary(conn, n_months).
+    """
+    brand = get_brand_or_404(brand_id)
+
+    # How many months to show (you can make this configurable / query param)
+    n_months = 6
+
+    conn = get_brand_db(brand_id)
+    try:
+
+        # Get list of month summaries ordered latest -> earliest
+        monthly_summaries: List[Dict[str, Any]] = reports.get_monthly_status_summary(
+            conn, n_months=n_months
+        )
+    finally:
+        conn.close()
+
+    return render_template(
+        "brands/reports.html",
+        brand=brand,
+        monthly_summaries=monthly_summaries,
+        n_months=n_months,
+    )
+
+# -------------------------------------------------------------------
+# CRUD for ASINs 
+# -------------------------------------------------------------------
+
+@app.route("/brands/<brand_id>/asin-meta")
+def asin_meta_index(brand_id: str):
+    brand = get_brand_or_404(brand_id)
+    conn = get_brand_db(brand_id)
+    try:
+        items = asin_meta.get_all_asin_meta(conn)
+    finally:
+        conn.close()
+
+    return render_template("asin_meta/index.html", brand=brand, items=items)
+
+
+@app.route("/brands/<brand_id>/asin-meta/new")
+def asin_meta_new(brand_id: str):
+    brand = get_brand_or_404(brand_id)
+    item = {
+        "asin": "",
+        "title_override": "",
+        "brand": "",
+        "category": "",
+        "subcategory": "",
+        "cost": "",
+        "launch_date": "",
+        "notes": "",
+    }
+    return render_template("asin_meta/edit.html", brand=brand, item=item, is_new=True)
+
+
+
+@app.route("/brands/<brand_id>/asin-meta/<asin>/edit")
+def asin_meta_edit(brand_id: str, asin: str):
+    brand = get_brand_or_404(brand_id)
+    conn = get_brand_db(brand_id)
+    try:
+        item = asin_meta.get_asin_meta(conn, asin)
+    finally:
+        conn.close()
+
+    if not item:
+        abort(404)
+
+    # Convert None to "" for form fields
+    for key in ["title_override", "brand", "category", "subcategory", "launch_date", "notes"]:
+        item[key] = item[key] or ""
+    # cost might be None
+    item["cost"] = "" if item["cost"] is None else item["cost"]
+
+    return render_template("asin_meta/edit.html", brand=brand, item=item, is_new=False)
+
+
+@app.route("/brands/<brand_id>/asin-meta/save", methods=["POST"])
+def asin_meta_save(brand_id: str):
+    brand = get_brand_or_404(brand_id)
+    original_asin = request.form.get("original_asin", "").strip()
+    asin_value = request.form.get("asin", "").strip()
+    title_override = request.form.get("title_override", "").strip()
+    brand_value = request.form.get("brand", "").strip()
+    category = request.form.get("category", "").strip()
+    subcategory = request.form.get("subcategory", "").strip()
+    cost_raw = request.form.get("cost", "").strip()
+    launch_date = request.form.get("launch_date", "").strip()
+    notes = request.form.get("notes", "").strip()
+
+    if not asin_value:
+        flash("ASIN is required.", "error")
+        if original_asin:
+            return redirect(url_for("asin_meta_edit", brand_id=brand_id, asin=original_asin))
+        return redirect(url_for("asin_meta_new" , brand_id=brand_id))
+
+    # cost is optional
+    cost: Any
+    if cost_raw == "":
+        cost = None
+    else:
+        try:
+            cost = float(cost_raw)
+        except ValueError:
+            flash("Cost must be a number.", "error")
+            if original_asin:
+                return redirect(url_for("asin_meta_edit", brand_id=brand_id, asin=original_asin))
+            return redirect(url_for("asin_meta_new", brand_id=brand_id))
+
+    conn = get_brand_db(brand_id) 
+    try:
+
+        # If ASIN changed, delete the old row first
+        if original_asin and original_asin != asin_value:
+            asin_meta.delete_asin_meta(conn, original_asin)
+
+        data: Dict[str, Any] = {
+            "asin": asin_value,
+            "title_override": title_override or None,
+            "brand": brand_value or None,
+            "category": category or None,
+            "subcategory": subcategory or None,
+            "cost": cost,
+            "launch_date": launch_date or None,  # store as TEXT, e.g. "2025-01-01"
+            "notes": notes or None,
+        }
+
+        asin_meta.upsert_asin_meta(conn, data)
+        conn.commit()
+    finally:
+        conn.close()
+
+    flash("ASIN metadata saved.", "success")
+    return redirect(url_for("asin_meta_index", brand_id=brand_id))
+
+
+@app.route("/brands/<brand_id>/asin-meta/<asin>/delete", methods=["POST"])
+def asin_meta_delete_route(brand_id: str, asin: str):
+    brand = get_brand_or_404(brand_id)
+    conn = get_brand_db(brand_id)
+    try:
+        asin_meta.delete_asin_meta(conn, asin)
+        conn.commit()
+    finally:
+        conn.close()
+
+    flash(f"Deleted ASIN {asin}.", "success")
+    return redirect(url_for("asin_meta_index", brand_id=brand_id))
 
 
 if __name__ == "__main__":

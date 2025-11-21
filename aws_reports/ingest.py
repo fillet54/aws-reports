@@ -7,16 +7,8 @@ import shutil
 import hashlib
 
 
-from .userdirs import user_data_dir  # adjust import if needed
+from .config import BRAND_PATH, BRAND_ARCHIVE_PATH 
 
-
-DATA_DIR: Path = user_data_dir("AwsReporting")
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-DB_PATH = Path("data/orders.sqlite3")
-ARCHIVE_DIR = Path("data/archive")
-
-BRANDS_FILE: Path = DATA_DIR / "brands.json"
 
 def normalize_date(dt_str):
     if not dt_str:
@@ -156,18 +148,10 @@ def apply_report_to_db(conn, csv_path: Path) -> int:
     return len(rows)
 
 
-def ingest_and_archive(csv_path_str: str, brand_id: str):
+def ingest_and_archive(conn, csv_path_str: str, brand_id: str):
     csv_path = Path(csv_path_str).resolve()
 
-    ARCHIVE_DIR = DATA_DIR / "brand_data" / brand_id / "archives"
-    ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
-
-    DB_PATH = DATA_DIR / "brand_data" / brand_id /  "orders.sqlite3"
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    init_db(conn)
+    ARCHIVE_DIR = BRAND_ARCHIVE_PATH(brand_id)
 
     row_count = apply_report_to_db(conn, csv_path)
 
@@ -191,10 +175,3 @@ def ingest_and_archive(csv_path_str: str, brand_id: str):
     conn.close()
     print(f"Ingested {row_count} rows from {csv_path.name}, archived to {archived_path}")
 
-
-if __name__ == "__main__":
-    import sys
-    if len(sys.argv) != 2:
-        print(f"Usage: {sys.argv[0]} <amazon_orders_report.tsv>")
-        raise SystemExit(1)
-    ingest_and_archive(sys.argv[1])
