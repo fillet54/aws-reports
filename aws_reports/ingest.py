@@ -256,5 +256,4 @@ def ingest_and_archive(conn, csv_path_str: str, brand_id: str):
             ) VALUES (?, ?, ?, ?, ?);
         """, (str(csv_path), str(archived_path), imported_at, row_count, sha))
 
-    conn.close()
     print(f"Ingested {row_count} rows from {csv_path.name}, archived to {archived_path}")

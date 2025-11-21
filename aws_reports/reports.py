@@ -266,3 +266,24 @@ def get_weekly_status_summary(conn, start_date: str, end_date: str) -> List[Dict
 
     result = sorted(weeks.values(), key=lambda w: w["week_start"])
     return result
+
+
+def get_sales_total(conn, start_date: str, end_date: str) -> float:
+    """
+    Return total net_item_revenue for orders between start_date and end_date
+    (inclusive), excluding cancelled orders.
+    Dates must be YYYY-MM-DD strings.
+    """
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT COALESCE(SUM(net_item_revenue), 0.0) AS total
+        FROM orders
+        WHERE purchase_date IS NOT NULL
+          AND date(purchase_date) BETWEEN ? AND ?
+          AND LOWER(COALESCE(item_status, '')) NOT IN ('cancelled', 'canceled')
+        """,
+        (start_date, end_date),
+    )
+    row = cur.fetchone()
+    return float(row[0]) if row and row[0] is not None else 0.0

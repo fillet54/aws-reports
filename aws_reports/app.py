@@ -91,7 +91,31 @@ def choose_brand():
 @app.route("/brands/<brand_id>")
 def brand_index(brand_id: str):
     brand = get_brand_or_404(brand_id)
-    return render_template("brands/index.html", brand=brand)
+
+    today = datetime.utcnow().date()
+    ytd_start = today.replace(month=1, day=1)
+    mtd_start = today.replace(day=1)
+    week_start = today - timedelta(days=today.weekday())  # Monday of current week
+
+    conn = get_brand_db(brand_id)
+    try:
+        ytd_sales = reports.get_sales_total(conn, ytd_start.isoformat(), today.isoformat())
+        mtd_sales = reports.get_sales_total(conn, mtd_start.isoformat(), today.isoformat())
+        week_sales = reports.get_sales_total(conn, week_start.isoformat(), today.isoformat())
+    finally:
+        conn.close()
+
+    sales_summary = {
+        "ytd": ytd_sales,
+        "mtd": mtd_sales,
+        "week": week_sales,
+        "today": today.isoformat(),
+        "week_start": week_start.isoformat(),
+        "mtd_start": mtd_start.isoformat(),
+        "ytd_start": ytd_start.isoformat(),
+    }
+
+    return render_template("brands/index.html", brand=brand, sales_summary=sales_summary)
 
 
 # -------------------------------------------------------------------
