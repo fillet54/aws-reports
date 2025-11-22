@@ -53,7 +53,7 @@ def get_monthly_status_summary(conn, n_months: int) -> List[Dict[str, Any]]:
             o.asin,
             o.item_status,
             COALESCE(o.quantity, 0)           AS quantity,
-            COALESCE(o.net_item_revenue, 0.0) AS net_item_revenue,
+            COALESCE(o.quantity, 0) * (COALESCE(o.item_price, 0.0) - COALESCE(o.item_promotion_discount, 0.0)) AS order_revenue,
             o.sales_channel,
             m.title_override,
             m.brand,
@@ -203,7 +203,7 @@ def get_weekly_status_summary(conn, start_date: str, end_date: str) -> List[Dict
             o.asin,
             o.item_status,
             COALESCE(o.quantity, 0)           AS quantity,
-            COALESCE(o.net_item_revenue, 0.0) AS net_item_revenue,
+            COALESCE(o.quantity, 0) * (COALESCE(o.item_price, 0.0) - COALESCE(o.item_promotion_discount, 0.0)) AS order_revenue,
             o.sales_channel,
             m.title_override,
             m.brand,
@@ -330,14 +330,17 @@ def get_weekly_status_summary(conn, start_date: str, end_date: str) -> List[Dict
 
 def get_sales_total(conn, start_date: str, end_date: str) -> float:
     """
-    Return total net_item_revenue for orders between start_date and end_date
-    (inclusive), excluding cancelled orders.
+    Return total revenue for orders between start_date and end_date
+    (inclusive), excluding cancelled orders. Revenue is
+    quantity * (item_price - item_promotion_discount); tax and shipping are ignored.
     Dates must be YYYY-MM-DD strings.
     """
     cur = conn.cursor()
     cur.execute(
         """
-        SELECT COALESCE(SUM(net_item_revenue), 0.0) AS total
+        SELECT COALESCE(SUM(
+            COALESCE(quantity, 0) * (COALESCE(item_price, 0.0) - COALESCE(item_promotion_discount, 0.0))
+        ), 0.0) AS total
         FROM orders
         WHERE purchase_date IS NOT NULL
           AND date(purchase_date) BETWEEN ? AND ?
