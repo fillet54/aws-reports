@@ -54,6 +54,7 @@ def get_monthly_status_summary(conn, n_months: int) -> List[Dict[str, Any]]:
             o.item_status,
             COALESCE(o.quantity, 0)           AS quantity,
             COALESCE(o.net_item_revenue, 0.0) AS net_item_revenue,
+            o.sales_channel,
             m.title_override,
             m.brand,
             m.category,
@@ -91,6 +92,20 @@ def get_monthly_status_summary(conn, n_months: int) -> List[Dict[str, Any]]:
             "Cancelled": {"units": 0, "total_sales": 0.0},
         }
 
+    def bucket_channel(channel: str | None):
+        c = (channel or "").strip().lower()
+        if c == "amazon.com":
+            return "US"
+        if c == "amazon.ca":
+            return "CANADA"
+        return None
+
+    def empty_channel_buckets():
+        return {
+            "US": {"units": 0, "total_sales": 0.0},
+            "CANADA": {"units": 0, "total_sales": 0.0},
+        }
+
     months: Dict[str, Dict[str, Any]] = {}
 
     for (
@@ -99,6 +114,7 @@ def get_monthly_status_summary(conn, n_months: int) -> List[Dict[str, Any]]:
         item_status,
         qty,
         total,
+        sales_channel,
         title_override,
         brand,
         category,
@@ -115,6 +131,7 @@ def get_monthly_status_summary(conn, n_months: int) -> List[Dict[str, Any]]:
             months[year_month] = {
                 "year_month": year_month,
                 "by_asin": {},
+                "channel_totals": empty_channel_buckets(),
                 "totals": empty_status_buckets(),
             }
 
@@ -134,6 +151,7 @@ def get_monthly_status_summary(conn, n_months: int) -> List[Dict[str, Any]]:
                     "launch_date": launch_date,
                     "notes": notes,
                 },
+                "channels": empty_channel_buckets(),
                 "statuses": empty_status_buckets(),
             }
 
@@ -144,6 +162,15 @@ def get_monthly_status_summary(conn, n_months: int) -> List[Dict[str, Any]]:
 
         month_entry["totals"][status_bucket]["units"] += int(qty)
         month_entry["totals"][status_bucket]["total_sales"] += float(total)
+
+        channel_bucket = bucket_channel(sales_channel)
+        if channel_bucket:
+            asin_channels = by_asin[asin]["channels"]
+            month_channels = month_entry["channel_totals"]
+            asin_channels[channel_bucket]["units"] += int(qty)
+            asin_channels[channel_bucket]["total_sales"] += float(total)
+            month_channels[channel_bucket]["units"] += int(qty)
+            month_channels[channel_bucket]["total_sales"] += float(total)
 
     # order latest -> earliest by YYYY-MM string
     result = sorted(months.values(), key=lambda m: m["year_month"], reverse=True)
@@ -177,6 +204,7 @@ def get_weekly_status_summary(conn, start_date: str, end_date: str) -> List[Dict
             o.item_status,
             COALESCE(o.quantity, 0)           AS quantity,
             COALESCE(o.net_item_revenue, 0.0) AS net_item_revenue,
+            o.sales_channel,
             m.title_override,
             m.brand,
             m.category,
@@ -213,6 +241,20 @@ def get_weekly_status_summary(conn, start_date: str, end_date: str) -> List[Dict
             "Cancelled": {"units": 0, "total_sales": 0.0},
         }
 
+    def bucket_channel(channel: str | None):
+        c = (channel or "").strip().lower()
+        if c == "amazon.com":
+            return "US"
+        if c == "amazon.ca":
+            return "CANADA"
+        return None
+
+    def empty_channel_buckets():
+        return {
+            "US": {"units": 0, "total_sales": 0.0},
+            "CANADA": {"units": 0, "total_sales": 0.0},
+        }
+
     weeks: Dict[str, Dict[str, Any]] = {}
 
     for (
@@ -223,6 +265,7 @@ def get_weekly_status_summary(conn, start_date: str, end_date: str) -> List[Dict
         item_status,
         qty,
         total,
+        sales_channel,
         title_override,
         brand,
         category,
@@ -241,6 +284,7 @@ def get_weekly_status_summary(conn, start_date: str, end_date: str) -> List[Dict
                 "week_start": week_start,
                 "week_end": week_end,
                 "by_asin": {},
+                "channel_totals": empty_channel_buckets(),
                 "totals": empty_status_buckets(),
             }
 
@@ -259,6 +303,7 @@ def get_weekly_status_summary(conn, start_date: str, end_date: str) -> List[Dict
                     "launch_date": launch_date,
                     "notes": notes,
                 },
+                "channels": empty_channel_buckets(),
                 "statuses": empty_status_buckets(),
             }
 
@@ -269,6 +314,15 @@ def get_weekly_status_summary(conn, start_date: str, end_date: str) -> List[Dict
 
         week_entry["totals"][status_bucket]["units"] += int(qty)
         week_entry["totals"][status_bucket]["total_sales"] += float(total)
+
+        channel_bucket = bucket_channel(sales_channel)
+        if channel_bucket:
+            asin_channels = by_asin[asin]["channels"]
+            week_channels = week_entry["channel_totals"]
+            asin_channels[channel_bucket]["units"] += int(qty)
+            asin_channels[channel_bucket]["total_sales"] += float(total)
+            week_channels[channel_bucket]["units"] += int(qty)
+            week_channels[channel_bucket]["total_sales"] += float(total)
 
     result = sorted(weeks.values(), key=lambda w: w["week_start"])
     return result

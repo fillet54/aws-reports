@@ -19,7 +19,7 @@
                 <table class="table table-sm">
                   <thead>
                     <tr>
-                      <th>Status</th>
+                      <th>Region</th>
                       <th class="text-right">Units</th>
                       <th class="text-right">Sales</th>
                     </tr>
@@ -30,11 +30,20 @@
                     {% set cancelled = month.totals.get("Cancelled", {"units": 0, "total_sales": 0.0}) %}
                     {% set combined_units = shipped.units + unshipped.units %}
                     {% set combined_sales = shipped.total_sales + unshipped.total_sales %}
+                    {% set us       = month.channel_totals.get("US",      {"units": 0, "total_sales": 0.0}) %}
+                    {% set canada   = month.channel_totals.get("CANADA",  {"units": 0, "total_sales": 0.0}) %}
                     <tr>
-                      <td>Orders</td>
-                      <td class="text-right">{{ combined_units }}</td>
+                      <td>US 🇺🇸</td>
+                      <td class="text-right">{{ us.units }}</td>
                       <td class="text-right">
-                        {{ "%.2f"|format(combined_sales) }}
+                        {{ "%.2f"|format(us.total_sales) }}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Canada 🇨🇦</td>
+                      <td class="text-right">{{ canada.units }}</td>
+                      <td class="text-right">
+                        {{ "%.2f"|format(canada.total_sales) }}
                       </td>
                     </tr>
                     <tr>
@@ -42,6 +51,13 @@
                       <td class="text-right">{{ cancelled.units }}</td>
                       <td class="text-right">
                         {{ "%.2f"|format(cancelled.total_sales) }}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>All orders</td>
+                      <td class="text-right">{{ combined_units }}</td>
+                      <td class="text-right">
+                        {{ "%.2f"|format(combined_sales) }}
                       </td>
                     </tr>
                   </tbody>
@@ -56,10 +72,16 @@
                   <table class="table table-sm" data-sortable="true">
                     <thead>
                       <tr>
-                        <th data-sort-key="asin" class="cursor-pointer">ASIN</th>
-                        <th data-sort-key="desc" class="cursor-pointer">Description</th>
-                        <th data-sort-key="combined_units" data-sort-type="number" class="text-right cursor-pointer">Units</th>
-                        <th data-sort-key="combined_sales" data-sort-type="number" class="text-right cursor-pointer">Sales</th>
+                        <th rowspan="2" data-sort-key="asin" class="cursor-pointer align-bottom">ASIN</th>
+                        <th rowspan="2" data-sort-key="desc" class="cursor-pointer align-bottom">Description</th>
+                        <th colspan="2" class="text-center">US 🇺🇸</th>
+                        <th colspan="2" class="text-center">Canada 🇨🇦</th>
+                      </tr>
+                      <tr>
+                        <th data-sort-key="us_units" data-sort-type="number" class="text-right cursor-pointer">Units</th>
+                        <th data-sort-key="us_sales" data-sort-type="number" class="text-right cursor-pointer">Sales</th>
+                        <th data-sort-key="ca_units" data-sort-type="number" class="text-right cursor-pointer">Units</th>
+                        <th data-sort-key="ca_sales" data-sort-type="number" class="text-right cursor-pointer">Sales</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -67,8 +89,8 @@
                         {% set shipped   = asin_data.statuses.get("Shipped",   {"units": 0, "total_sales": 0.0}) %}
                         {% set unshipped = asin_data.statuses.get("Unshipped", {"units": 0, "total_sales": 0.0}) %}
                         {% set cancelled = asin_data.statuses.get("Cancelled", {"units": 0, "total_sales": 0.0}) %}
-                        {% set combined_units = shipped.units + unshipped.units %}
-                        {% set combined_sales = shipped.total_sales + unshipped.total_sales %}
+                        {% set us = asin_data.channels.get("US", {"units": 0, "total_sales": 0.0}) %}
+                        {% set canada = asin_data.channels.get("CANADA", {"units": 0, "total_sales": 0.0}) %}
                         <tr>
                           <td class="flex items-center gap-1">
                             <code>{{ asin }}</code>
@@ -89,8 +111,10 @@
                             </a>
                           </td>
                           <td><code>{{ asin_data["meta"]["title_override"] }}</code></td>
-                          <td class="text-right">{{ combined_units }}</td>
-                          <td class="text-right">{{ "%.2f"|format(combined_sales) }}</td>
+                          <td class="text-right">{{ us.units }}</td>
+                          <td class="text-right">{{ "%.2f"|format(us.total_sales) }}</td>
+                          <td class="text-right">{{ canada.units }}</td>
+                          <td class="text-right">{{ "%.2f"|format(canada.total_sales) }}</td>
                         </tr>
                       {% endfor %}
                     </tbody>
