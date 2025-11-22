@@ -65,6 +65,9 @@ def get_monthly_status_summary(conn, n_months: int) -> List[Dict[str, Any]]:
         LEFT JOIN asin_meta m ON o.asin = m.asin
         WHERE o.purchase_date IS NOT NULL
           AND o.purchase_date >= date('now', 'start of month', ?)
+          AND o.item_price IS NOT NULL
+          AND (o.order_status IS NULL OR lower(o.order_status) <> 'pending')
+          AND (o.item_status IS NULL OR lower(o.item_status) <> 'pending')
         """,
         (offset_expr,),
     )
@@ -185,6 +188,9 @@ def get_weekly_status_summary(conn, start_date: str, end_date: str) -> List[Dict
         LEFT JOIN asin_meta m ON o.asin = m.asin
         WHERE o.purchase_date IS NOT NULL
           AND date(o.purchase_date) BETWEEN ? AND ?
+          AND o.item_price IS NOT NULL
+          AND (o.order_status IS NULL OR lower(o.order_status) <> 'pending')
+          AND (o.item_status IS NULL OR lower(o.item_status) <> 'pending')
         """,
         (start_iso, end_iso),
     )
@@ -282,6 +288,9 @@ def get_sales_total(conn, start_date: str, end_date: str) -> float:
         WHERE purchase_date IS NOT NULL
           AND date(purchase_date) BETWEEN ? AND ?
           AND LOWER(COALESCE(item_status, '')) NOT IN ('cancelled', 'canceled')
+          AND item_price IS NOT NULL
+          AND (order_status IS NULL OR lower(order_status) <> 'pending')
+          AND (item_status IS NULL OR lower(item_status) <> 'pending')
         """,
         (start_date, end_date),
     )
