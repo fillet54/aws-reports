@@ -281,8 +281,10 @@ def brand_reports(brand_id: str):
     finally:
         conn.close()
 
+    is_partial = request.headers.get("HX-Request") or request.args.get("partial") == "1"
+    template = "brands/partials/monthly_report.html" if is_partial else "brands/reports.html"
     return render_template(
-        "brands/reports.html",
+        template,
         brand=brand,
         monthly_summaries=monthly_summaries,
         n_months=n_months,
@@ -329,8 +331,10 @@ def brand_weekly_reports(brand_id: str):
     finally:
         conn.close()
 
+    is_partial = request.headers.get("HX-Request") or request.args.get("partial") == "1"
+    template = "brands/partials/weekly_report.html" if is_partial else "brands/weekly_reports.html"
     return render_template(
-        "brands/weekly_reports.html",
+        template,
         brand=brand,
         weekly_summaries=weekly_summaries,
         start_date=start_date.isoformat(),

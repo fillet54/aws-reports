@@ -14,6 +14,65 @@
   <!-- HTMX -->
   <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
 
+  <script>
+    // Simple sortable tables helper, works on initial load and htmx swaps.
+    function initSortableTables(root) {
+      const container = root || document;
+      container.querySelectorAll('table[data-sortable="true"]').forEach((table) => {
+        const tbody = table.querySelector('tbody');
+        if (!tbody) return;
+        const headers = table.querySelectorAll('thead th[data-sort-key]');
+
+        headers.forEach((th, idx) => {
+          if (th.dataset.sortAttached) return;
+          th.dataset.sortAttached = "1";
+          th.addEventListener('click', () => {
+            const currentDir = th.dataset.sortDir === 'asc' ? 'desc' : 'asc';
+            th.dataset.sortDir = currentDir;
+            const type = th.dataset.sortType || 'text';
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const val = (row) => {
+              const cell = row.children[idx];
+              const text = cell ? cell.innerText.trim() : '';
+              if (type === 'number') {
+                const num = parseFloat(text.replace(/[^0-9.-]/g, ''));
+                return isNaN(num) ? 0 : num;
+              }
+              return text.toLowerCase();
+            };
+            rows.sort((a, b) => {
+              const av = val(a);
+              const bv = val(b);
+              if (av === bv) return 0;
+              if (currentDir === 'asc') {
+                return av > bv ? 1 : -1;
+              }
+              return av < bv ? 1 : -1;
+            });
+            rows.forEach((r) => tbody.appendChild(r));
+
+            headers.forEach((h) => {
+              if (h !== th) h.dataset.sortDir = '';
+              h.querySelectorAll('.sort-indicator').forEach((el) => el.textContent = '');
+            });
+            let indicator = th.querySelector('.sort-indicator');
+            if (!indicator) {
+              indicator = document.createElement('span');
+              indicator.className = 'sort-indicator ml-1 text-xs opacity-70';
+              th.appendChild(indicator);
+            }
+            indicator.textContent = currentDir === 'asc' ? '▲' : '▼';
+          });
+        });
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => initSortableTables(document));
+    document.addEventListener('htmx:afterSwap', (evt) => {
+      initSortableTables(evt.target);
+    });
+  </script>
+
   {% block head %}{% endblock %}
 </head>
 <body class="min-h-screen bg-base-200">

@@ -1,84 +1,9 @@
-{% extends "layout.html" %}
-
-{% block title %}{{ brand.name }} – Weekly Reports{% endblock %}
-
-{% block content %}
-  <div class="flex items-center justify-between mb-6">
-    <div>
-      <h1 class="text-3xl font-bold mb-1">{{ brand.name }} – Weekly reports</h1>
-      <p class="text-sm text-base-content/70">
-        Grouped Monday–Sunday within a custom date range.
-      </p>
-    </div>
-    <div class="flex gap-2">
-      <a class="btn btn-outline" href="{{ url_for('brand_reports', brand_id=brand.id) }}">
-        Monthly reports
-      </a>
-      <a class="btn btn-outline" href="{{ url_for('brand_index', brand_id=brand.id) }}">
-        Back to brand
-      </a>
-    </div>
-  </div>
-
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      <div class="mb-4 space-y-2">
-        {% for category, message in messages %}
-          <div class="alert {{ 'alert-error' if category == 'error' else 'alert-success' }}">
-            <span>{{ message }}</span>
-          </div>
-        {% endfor %}
-      </div>
-    {% endif %}
-  {% endwith %}
-
-  <div class="card bg-base-100 shadow mb-6">
-    <div class="card-body space-y-4">
-      <div class="flex items-center justify-between">
-        <h2 class="card-title">Choose date range</h2>
-        <span class="badge badge-outline">Weekly</span>
-      </div>
-      <p class="text-sm text-base-content/70">
-        Both dates are inclusive. Weeks are anchored on Monday and end on Sunday.
-      </p>
-      <form method="get" class="grid gap-4 md:grid-cols-4 items-end">
-        <label class="form-control w-full">
-          <div class="label">
-            <span class="label-text font-semibold">Start date</span>
-          </div>
-          <input
-            class="input input-bordered w-full"
-            type="date"
-            name="start_date"
-            value="{{ start_date }}"
-            required
-          >
-        </label>
-        <label class="form-control w-full">
-          <div class="label">
-            <span class="label-text font-semibold">End date</span>
-          </div>
-          <input
-            class="input input-bordered w-full"
-            type="date"
-            name="end_date"
-            value="{{ end_date }}"
-            required
-          >
-        </label>
-        <div class="md:col-span-2 flex gap-2 md:justify-end">
-          <a
-            class="btn btn-ghost"
-            href="{{ url_for('brand_weekly_reports', brand_id=brand.id) }}"
-          >
-            Reset
-          </a>
-          <button class="btn btn-primary" type="submit">
-            Update
-          </button>
-        </div>
-      </form>
-    </div>
+<div class="space-y-4">
+  <div class="flex items-center gap-2">
+    <span class="badge badge-outline">Weekly</span>
+    <p class="text-sm text-base-content/70">
+      {{ start_date }} – {{ end_date }}
+    </p>
   </div>
 
   {% if weekly_summaries %}
@@ -88,7 +13,7 @@
           <div class="card-body space-y-4">
             <div class="flex items-center justify-between">
               <div>
-                <h2 class="card-title">{{ week.week_label }}</h2>
+                <h3 class="card-title">{{ week.week_label }}</h3>
                 <p class="text-sm text-base-content/70">
                   {{ week.week_start }} – {{ week.week_end }}
                 </p>
@@ -96,7 +21,7 @@
             </div>
 
             <div>
-              <h3 class="font-semibold mb-2">Totals by status</h3>
+              <h4 class="font-semibold mb-2">Totals by status</h4>
               <div class="overflow-x-auto">
                 <table class="table table-sm">
                   <thead>
@@ -123,7 +48,7 @@
             </div>
 
             <div>
-              <h3 class="font-semibold mb-2">By ASIN</h3>
+              <h4 class="font-semibold mb-2">By ASIN</h4>
               {% if week.by_asin %}
                 <div class="overflow-x-auto">
                   <table class="table table-sm" data-sortable="true">
@@ -186,6 +111,4 @@
       <span>No data found in this date range. Try importing an orders report first.</span>
     </div>
   {% endif %}
-{% endblock %}
-
-{% block scripts %}{% endblock %}
+</div>

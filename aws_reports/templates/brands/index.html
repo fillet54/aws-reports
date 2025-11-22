@@ -83,8 +83,7 @@
     {% endif %}
   {% endwith %}
 
-  <div class="grid gap-6 md:grid-cols-2">
-    <!-- Left: navigation / actions -->
+  <div class="space-y-6">
     <div class="space-y-4">
       <div class="flex flex-wrap gap-2">
         <a class="btn btn-primary btn-sm" href="{{ url_for('brand_reports', brand_id=brand.id) }}">
@@ -97,8 +96,34 @@
 
       <div class="card bg-base-100 shadow">
         <div class="card-body">
-          <h2 class="card-title">Brand dashboard</h2>
-          <p class="text-sm text-base-content/70">Quick links and stats for {{ brand.name }}.</p>
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h2 class="card-title">Brand dashboard</h2>
+              <p class="text-sm text-base-content/70">Quick links and stats for {{ brand.name }}.</p>
+            </div>
+            <div class="join join-sm">
+              <button
+                class="report-toggle btn btn-sm join-item btn-primary"
+                hx-get="{{ url_for('brand_reports', brand_id=brand.id, partial=1) }}"
+                hx-target="#report-panel"
+                hx-swap="innerHTML"
+              >
+                Monthly
+              </button>
+              <button
+                class="report-toggle btn btn-sm join-item btn-outline"
+                hx-get="{{ url_for('brand_weekly_reports', brand_id=brand.id, partial=1) }}"
+                hx-target="#report-panel"
+                hx-swap="innerHTML"
+              >
+                Weekly
+              </button>
+            </div>
+          </div>
+
+          <div id="report-panel" hx-get="{{ url_for('brand_reports', brand_id=brand.id, partial=1) }}" hx-trigger="load" hx-swap="innerHTML">
+            <div class="text-sm text-base-content/70">Loading report…</div>
+          </div>
         </div>
       </div>
     </div>
@@ -144,4 +169,24 @@
       <button>close</button>
     </form>
   </dialog>
+
+{% block scripts %}
+<script>
+  document.addEventListener('htmx:afterSwap', function(evt) {
+    if (!evt.target || evt.target.id !== 'report-panel') return;
+    const buttons = document.querySelectorAll('.report-toggle');
+    const isWeekly = evt.detail.xhr.responseURL && evt.detail.xhr.responseURL.includes('/reports/weekly');
+    buttons.forEach(btn => {
+      const wantsWeekly = btn.textContent.trim().toLowerCase() === 'weekly';
+      if (wantsWeekly === isWeekly) {
+        btn.classList.add('btn-primary');
+        btn.classList.remove('btn-outline');
+      } else {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+      }
+    });
+  });
+</script>
+{% endblock %}
 {% endblock %}

@@ -1,36 +1,8 @@
-{% extends "layout.html" %}
-
-{% block title %}{{ brand.name }} – Reports{% endblock %}
-
-{% block content %}
-  <div class="flex items-center justify-between mb-6">
-    <div>
-      <h1 class="text-3xl font-bold mb-1">{{ brand.name }} – Reports</h1>
-      <p class="text-sm text-base-content/70">
-        Monthly order status summary for the past {{ n_months }} months.
-      </p>
-    </div>
-    <div class="flex gap-2">
-      <a class="btn btn-outline" href="{{ url_for('brand_weekly_reports', brand_id=brand.id) }}">
-        Weekly report
-      </a>
-      <a class="btn btn-outline" href="{{ url_for('brand_index', brand_id=brand.id) }}">
-        Back to brand
-      </a>
-    </div>
+<div class="space-y-4">
+  <div class="flex items-center gap-2">
+    <span class="badge badge-primary badge-outline">Monthly</span>
+    <p class="text-sm text-base-content/70">Showing past {{ n_months }} months.</p>
   </div>
-
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      <div class="mb-4 space-y-2">
-        {% for category, message in messages %}
-          <div class="alert {{ 'alert-error' if category == 'error' else 'alert-success' }}">
-            <span>{{ message }}</span>
-          </div>
-        {% endfor %}
-      </div>
-    {% endif %}
-  {% endwith %}
 
   {% if monthly_summaries %}
     <div class="space-y-6">
@@ -38,14 +10,11 @@
         <div class="card bg-base-100 shadow">
           <div class="card-body space-y-4">
             <div class="flex items-center justify-between">
-              <h2 class="card-title">
-                {{ month.year_month }}
-              </h2>
+              <h3 class="card-title">{{ month.year_month }}</h3>
             </div>
 
-            <!-- Totals table -->
             <div>
-              <h3 class="font-semibold mb-2">Totals by status</h3>
+              <h4 class="font-semibold mb-2">Totals by status</h4>
               <div class="overflow-x-auto">
                 <table class="table table-sm">
                   <thead>
@@ -71,9 +40,8 @@
               </div>
             </div>
 
-            <!-- By-ASIN breakdown -->
             <div>
-              <h3 class="font-semibold mb-2">By ASIN</h3>
+              <h4 class="font-semibold mb-2">By ASIN</h4>
               {% if month.by_asin %}
                 <div class="overflow-x-auto">
                   <table class="table table-sm" data-sortable="true">
@@ -100,7 +68,6 @@
                                 href="{{ url_for('asin_meta_edit', brand_id=brand['id'], asin=asin, next=request.full_path) }}"
                                 title="Edit ASIN"
                                 >
-                                <!-- tiny pencil icon -->
                               <svg xmlns="http://www.w3.org/2000/svg"
                                    class="w-4 h-4"
                                    fill="none"
@@ -132,11 +99,9 @@
         </div>
       {% endfor %}
     </div>
-{% else %}
+  {% else %}
     <div class="alert alert-info">
       <span>No data found. Try importing an orders report for this brand first.</span>
     </div>
   {% endif %}
-{% endblock %}
-
-{% block scripts %}{% endblock %}
+</div>
