@@ -84,46 +84,35 @@
   {% endwith %}
 
   <div class="space-y-6">
-    <div class="space-y-4">
-      <div class="flex flex-wrap gap-2">
-        <a class="btn btn-primary btn-sm" href="{{ url_for('brand_reports', brand_id=brand.id) }}">
-          Monthly reports
-        </a>
-        <a class="btn btn-outline btn-sm" href="{{ url_for('brand_weekly_reports', brand_id=brand.id) }}">
-          Weekly report
-        </a>
-      </div>
-
-      <div class="card bg-base-100 shadow">
-        <div class="card-body">
-          <div class="flex items-center justify-between mb-3">
-            <div>
-              <h2 class="card-title">Brand dashboard</h2>
-              <p class="text-sm text-base-content/70">Quick links and stats for {{ brand.name }}.</p>
-            </div>
-            <div class="join join-sm">
-              <button
-                class="report-toggle btn btn-sm join-item btn-primary"
-                hx-get="{{ url_for('brand_reports', brand_id=brand.id, partial=1) }}"
-                hx-target="#report-panel"
-                hx-swap="innerHTML"
-              >
-                Monthly
-              </button>
-              <button
-                class="report-toggle btn btn-sm join-item btn-outline"
-                hx-get="{{ url_for('brand_weekly_reports', brand_id=brand.id, partial=1) }}"
-                hx-target="#report-panel"
-                hx-swap="innerHTML"
-              >
-                Weekly
-              </button>
-            </div>
+    <div class="card bg-base-100 shadow">
+      <div class="card-body">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h2 class="card-title">Brand dashboard</h2>
+            <p class="text-sm text-base-content/70">Quick links and stats for {{ brand.name }}.</p>
           </div>
-
-          <div id="report-panel" hx-get="{{ url_for('brand_reports', brand_id=brand.id, partial=1) }}" hx-trigger="load" hx-swap="innerHTML">
-            <div class="text-sm text-base-content/70">Loading report…</div>
+          <div class="join join-sm">
+            <button
+              class="report-toggle btn btn-sm join-item btn-primary"
+              hx-get="{{ url_for('brand_reports', brand_id=brand.id, partial=1) }}"
+              hx-target="#report-panel"
+              hx-swap="innerHTML"
+            >
+              Monthly
+            </button>
+            <button
+              class="report-toggle btn btn-sm join-item btn-outline"
+              hx-get="{{ url_for('brand_weekly_reports', brand_id=brand.id, partial=1) }}"
+              hx-target="#report-panel"
+              hx-swap="innerHTML"
+            >
+              Weekly
+            </button>
           </div>
+        </div>
+
+        <div id="report-panel" hx-get="{{ url_for('brand_reports', brand_id=brand.id, partial=1) }}" hx-trigger="load" hx-swap="innerHTML">
+          <div class="text-sm text-base-content/70">Loading report…</div>
         </div>
       </div>
     </div>
