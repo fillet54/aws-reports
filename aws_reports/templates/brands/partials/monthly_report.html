@@ -14,27 +14,36 @@
             </div>
 
             <div>
-              <h4 class="font-semibold mb-2">Totals by status</h4>
+              <h4 class="font-semibold mb-2">Totals</h4>
               <div class="overflow-x-auto">
                 <table class="table table-sm">
                   <thead>
                     <tr>
                       <th>Status</th>
                       <th class="text-right">Units</th>
-                      <th class="text-right">Total sales</th>
+                      <th class="text-right">Sales</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {% for status in ["Shipped", "Unshipped", "Cancelled"] %}
-                      {% set stat = month.totals.get(status, {"units": 0, "total_sales": 0.0}) %}
-                      <tr>
-                        <td>{{ status }}</td>
-                        <td class="text-right">{{ stat.units }}</td>
-                        <td class="text-right">
-                          {{ "%.2f"|format(stat.total_sales) }}
-                        </td>
-                      </tr>
-                    {% endfor %}
+                    {% set shipped   = month.totals.get("Shipped",   {"units": 0, "total_sales": 0.0}) %}
+                    {% set unshipped = month.totals.get("Unshipped", {"units": 0, "total_sales": 0.0}) %}
+                    {% set cancelled = month.totals.get("Cancelled", {"units": 0, "total_sales": 0.0}) %}
+                    {% set combined_units = shipped.units + unshipped.units %}
+                    {% set combined_sales = shipped.total_sales + unshipped.total_sales %}
+                    <tr>
+                      <td>Orders</td>
+                      <td class="text-right">{{ combined_units }}</td>
+                      <td class="text-right">
+                        {{ "%.2f"|format(combined_sales) }}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Cancelled</td>
+                      <td class="text-right">{{ cancelled.units }}</td>
+                      <td class="text-right">
+                        {{ "%.2f"|format(cancelled.total_sales) }}
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -49,10 +58,8 @@
                       <tr>
                         <th data-sort-key="asin" class="cursor-pointer">ASIN</th>
                         <th data-sort-key="desc" class="cursor-pointer">Description</th>
-                        <th data-sort-key="shipped_units" data-sort-type="number" class="text-right cursor-pointer">Shipped units</th>
-                        <th data-sort-key="shipped_sales" data-sort-type="number" class="text-right cursor-pointer">Shipped sales</th>
-                        <th data-sort-key="unshipped_units" data-sort-type="number" class="text-right cursor-pointer">Unshipped units</th>
-                        <th data-sort-key="unshipped_sales" data-sort-type="number" class="text-right cursor-pointer">Unshipped sales</th>
+                        <th data-sort-key="combined_units" data-sort-type="number" class="text-right cursor-pointer">Units</th>
+                        <th data-sort-key="combined_sales" data-sort-type="number" class="text-right cursor-pointer">Sales</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -60,6 +67,8 @@
                         {% set shipped   = asin_data.statuses.get("Shipped",   {"units": 0, "total_sales": 0.0}) %}
                         {% set unshipped = asin_data.statuses.get("Unshipped", {"units": 0, "total_sales": 0.0}) %}
                         {% set cancelled = asin_data.statuses.get("Cancelled", {"units": 0, "total_sales": 0.0}) %}
+                        {% set combined_units = shipped.units + unshipped.units %}
+                        {% set combined_sales = shipped.total_sales + unshipped.total_sales %}
                         <tr>
                           <td class="flex items-center gap-1">
                             <code>{{ asin }}</code>
@@ -80,10 +89,8 @@
                             </a>
                           </td>
                           <td><code>{{ asin_data["meta"]["title_override"] }}</code></td>
-                          <td class="text-right">{{ shipped.units }}</td>
-                          <td class="text-right">{{ "%.2f"|format(shipped.total_sales) }}</td>
-                          <td class="text-right">{{ unshipped.units }}</td>
-                          <td class="text-right">{{ "%.2f"|format(unshipped.total_sales) }}</td>
+                          <td class="text-right">{{ combined_units }}</td>
+                          <td class="text-right">{{ "%.2f"|format(combined_sales) }}</td>
                         </tr>
                       {% endfor %}
                     </tbody>
