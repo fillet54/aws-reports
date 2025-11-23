@@ -34,6 +34,19 @@
 
   {% if monthly_summaries %}
     <div class="space-y-6">
+      <form method="get" class="flex items-center justify-end">
+        <input type="hidden" name="channel" value="{{ current_channel }}">
+        <select
+          id="month-select"
+          name="month"
+          class="select select-bordered select-sm font-semibold text-lg"
+          onchange="this.form.submit()"
+        >
+          {% for m in month_options %}
+            <option value="{{ m }}" {% if m == selected_month %}selected{% endif %}>{{ m }}</option>
+          {% endfor %}
+        </select>
+      </form>
       {% for month in monthly_summaries %}
         <div class="card bg-base-100 shadow">
           <div class="card-body space-y-4">

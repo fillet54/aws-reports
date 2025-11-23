@@ -1,20 +1,25 @@
 <div class="space-y-4">
-  <div class="flex flex-wrap items-center gap-2 justify-between">
-    <div class="flex items-center gap-2">
-      <span class="badge badge-primary badge-outline">Monthly</span>
-      <p class="text-sm text-base-content/70">Showing past {{ n_months }} months.</p>
-    </div>
-  </div>
 
   {% if monthly_summaries %}
     <div class="space-y-6">
+      <div class="flex items-center justify-end">
+        <select
+          id="month-select"
+          name="month"
+          class="select select-sm select-bordered font-semibold text-lg"
+          hx-get="{{ url_for('brand_reports', brand_id=brand.id, partial=1, channel=current_channel) }}"
+          hx-target="#report-panel"
+          hx-swap="innerHTML"
+          hx-include="#month-select"
+        >
+          {% for m in month_options %}
+            <option value="{{ m }}" {% if m == selected_month %}selected{% endif %}>{{ m }}</option>
+          {% endfor %}
+        </select>
+      </div>
       {% for month in monthly_summaries %}
         <div class="card bg-base-100 shadow">
           <div class="card-body space-y-4">
-            <div class="flex items-center justify-between">
-              <h3 class="card-title">{{ month.year_month }}</h3>
-            </div>
-
             <div>
               <h4 class="font-semibold mb-2">Totals</h4>
               <div class="overflow-x-auto">

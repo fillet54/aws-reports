@@ -325,6 +325,7 @@ def brand_reports(brand_id: str):
     channel = request.args.get("channel", "US").upper()
     if channel not in ("US", "CANADA"):
         channel = "US"
+    selected_month = request.args.get("month")
 
     # How many months to show (you can make this configurable / query param)
     n_months = 6
@@ -339,6 +340,14 @@ def brand_reports(brand_id: str):
     finally:
         conn.close()
 
+    month_options = [m["year_month"] for m in monthly_summaries]
+    if selected_month and selected_month not in month_options:
+        selected_month = None
+    if not selected_month and month_options:
+        selected_month = month_options[0]
+    if selected_month:
+        monthly_summaries = [m for m in monthly_summaries if m["year_month"] == selected_month]
+
     is_partial = request.headers.get("HX-Request") or request.args.get("partial") == "1"
     template = "brands/partials/monthly_report.html" if is_partial else "brands/reports.html"
     return render_template(
@@ -347,6 +356,8 @@ def brand_reports(brand_id: str):
         monthly_summaries=monthly_summaries,
         n_months=n_months,
         current_channel=channel,
+        month_options=month_options,
+        selected_month=selected_month,
     )
 
 
