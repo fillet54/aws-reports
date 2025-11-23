@@ -289,6 +289,9 @@ def brand_reports(brand_id: str):
     Uses reports.get_monthly_status_summary(conn, n_months).
     """
     brand = get_brand_or_404(brand_id)
+    channel = request.args.get("channel", "US").upper()
+    if channel not in ("US", "CANADA"):
+        channel = "US"
 
     # How many months to show (you can make this configurable / query param)
     n_months = 6
@@ -298,7 +301,7 @@ def brand_reports(brand_id: str):
 
         # Get list of month summaries ordered latest -> earliest
         monthly_summaries: List[Dict[str, Any]] = reports.get_monthly_status_summary(
-            conn, n_months=n_months
+            conn, n_months=n_months, channel=channel
         )
     finally:
         conn.close()
@@ -310,6 +313,7 @@ def brand_reports(brand_id: str):
         brand=brand,
         monthly_summaries=monthly_summaries,
         n_months=n_months,
+        current_channel=channel,
     )
 
 
@@ -319,6 +323,9 @@ def brand_weekly_reports(brand_id: str):
     Show weekly status summary for a configurable date range.
     """
     brand = get_brand_or_404(brand_id)
+    channel = request.args.get("channel", "US").upper()
+    if channel not in ("US", "CANADA"):
+        channel = "US"
 
     today = datetime.utcnow().date()
     default_start = (today - timedelta(days=28)).isoformat()
@@ -346,6 +353,7 @@ def brand_weekly_reports(brand_id: str):
             conn,
             start_date=start_date.isoformat(),
             end_date=end_date.isoformat(),
+            channel=channel,
         )
     except ValueError as exc:
         flash(str(exc), "error")
@@ -361,6 +369,7 @@ def brand_weekly_reports(brand_id: str):
         weekly_summaries=weekly_summaries,
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
+        current_channel=channel,
     )
 
 # -------------------------------------------------------------------

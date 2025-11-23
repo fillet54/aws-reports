@@ -16,16 +16,22 @@
         </a>
       </div>
     </div>
-    <div class="flex flex-col items-end gap-1">
-      {% if latest_updated_date %}
-        <div class="text-xs text-base-content/70 text-right min-w-[120px]">
-          <p class="font-semibold text-base-content whitespace-nowrap">Last imported</p>
-          <p class="whitespace-nowrap">{{ latest_updated_date }}</p>
-        </div>
-      {% endif %}
-      <button class="btn btn-primary btn-sm" onclick="importDialog.showModal()">
-        Import orders
-      </button>
+    <div class="flex items-center gap-3">
+      <div class="join join-sm">
+        <button class="btn btn-sm join-item btn-primary channel-select" data-channel="US">US 🇺🇸</button>
+        <button class="btn btn-sm join-item btn-outline channel-select" data-channel="CANADA">Canada 🇨🇦</button>
+      </div>
+      <div class="flex flex-col items-end gap-1">
+        {% if latest_updated_date %}
+          <div class="text-xs text-base-content/70 text-right min-w-[120px]">
+            <p class="font-semibold text-base-content whitespace-nowrap">Last imported</p>
+            <p class="whitespace-nowrap">{{ latest_updated_date }}</p>
+          </div>
+        {% endif %}
+        <button class="btn btn-primary btn-sm" onclick="importDialog.showModal()">
+          Import orders
+        </button>
+      </div>
     </div>
   </div>
 
@@ -34,50 +40,31 @@
   </p>
 
   {% if channel_sales_summary %}
-    {% for channel, summary in channel_sales_summary.items() %}
-      <div class="mb-6 space-y-2">
-        <div class="flex items-center justify-between">
-          <h2 class="text-xl font-semibold">
-            {{ 'US' if channel == 'US' else 'Canada' }} ({{ summary.currency }})
-          </h2>
+    <div id="channel-cards" class="mb-6 space-y-2" data-default-channel="US">
+      <div class="grid gap-4 md:grid-cols-3">
+        <div class="card bg-base-100 shadow">
+          <div class="card-body">
+            <p class="text-sm text-base-content/70">Year to date</p>
+            <h3 class="text-2xl font-semibold" data-field="ytd-amount"></h3>
+            <p class="text-xs text-base-content/60" data-field="ytd-range"></p>
+          </div>
         </div>
-        <div class="grid gap-4 md:grid-cols-3">
-          <div class="card bg-base-100 shadow">
-            <div class="card-body">
-              <p class="text-sm text-base-content/70">Year to date</p>
-              <h3 class="text-2xl font-semibold">
-                {{ summary.currency }} {{ "%.2f"|format(summary.ytd) }}
-              </h3>
-              <p class="text-xs text-base-content/60">
-                {{ summary.ytd_start }} → {{ summary.today }}
-              </p>
-            </div>
+        <div class="card bg-base-100 shadow">
+          <div class="card-body">
+            <p class="text-sm text-base-content/70">Month to date</p>
+            <h3 class="text-2xl font-semibold" data-field="mtd-amount"></h3>
+            <p class="text-xs text-base-content/60" data-field="mtd-range"></p>
           </div>
-          <div class="card bg-base-100 shadow">
-            <div class="card-body">
-              <p class="text-sm text-base-content/70">Month to date</p>
-              <h3 class="text-2xl font-semibold">
-                {{ summary.currency }} {{ "%.2f"|format(summary.mtd) }}
-              </h3>
-              <p class="text-xs text-base-content/60">
-                {{ summary.mtd_start }} → {{ summary.today }}
-              </p>
-            </div>
-          </div>
-          <div class="card bg-base-100 shadow">
-            <div class="card-body">
-              <p class="text-sm text-base-content/70">Current week</p>
-              <h3 class="text-2xl font-semibold">
-                {{ summary.currency }} {{ "%.2f"|format(summary.week) }}
-              </h3>
-              <p class="text-xs text-base-content/60">
-                {{ summary.week_start }} → {{ summary.today }}
-              </p>
-            </div>
+        </div>
+        <div class="card bg-base-100 shadow">
+          <div class="card-body">
+            <p class="text-sm text-base-content/70">Current week</p>
+            <h3 class="text-2xl font-semibold" data-field="week-amount"></h3>
+            <p class="text-xs text-base-content/60" data-field="week-range"></p>
           </div>
         </div>
       </div>
-    {% endfor %}
+    </div>
   {% endif %}
 
   <div class="card bg-base-100 shadow mb-6">
@@ -86,10 +73,6 @@
         <div>
           <h2 class="card-title">Monthly performance</h2>
           <p class="text-sm text-base-content/70">Units (bars) vs. sales (line) for the year.</p>
-        </div>
-        <div class="join join-sm">
-          <button class="btn btn-sm join-item btn-primary channel-toggle" data-channel="US">US 🇺🇸</button>
-          <button class="btn btn-sm join-item btn-outline channel-toggle" data-channel="CANADA">Canada 🇨🇦</button>
         </div>
       </div>
       <div class="h-72">
@@ -121,7 +104,8 @@
           <div class="join join-sm">
             <button
               class="report-toggle btn btn-sm join-item btn-primary"
-              hx-get="{{ url_for('brand_reports', brand_id=brand.id, partial=1) }}"
+              data-report="monthly"
+              hx-get="{{ url_for('brand_reports', brand_id=brand.id, partial=1, channel='US') }}"
               hx-target="#report-panel"
               hx-swap="innerHTML"
             >
@@ -129,7 +113,8 @@
             </button>
             <button
               class="report-toggle btn btn-sm join-item btn-outline"
-              hx-get="{{ url_for('brand_weekly_reports', brand_id=brand.id, partial=1) }}"
+              data-report="weekly"
+              hx-get="{{ url_for('brand_weekly_reports', brand_id=brand.id, partial=1, channel='US') }}"
               hx-target="#report-panel"
               hx-swap="innerHTML"
             >
@@ -138,7 +123,15 @@
           </div>
         </div>
 
-        <div id="report-panel" hx-get="{{ url_for('brand_reports', brand_id=brand.id, partial=1) }}" hx-trigger="load" hx-swap="innerHTML">
+        <div
+          id="report-panel"
+          data-monthly-url="{{ url_for('brand_reports', brand_id=brand.id) }}"
+          data-weekly-url="{{ url_for('brand_weekly_reports', brand_id=brand.id) }}"
+          data-active-report="monthly"
+          hx-get="{{ url_for('brand_reports', brand_id=brand.id, partial=1, channel='US') }}"
+          hx-trigger="load"
+          hx-swap="innerHTML"
+        >
           <div class="text-sm text-base-content/70">Loading report…</div>
         </div>
       </div>
@@ -191,8 +184,12 @@
 <script>
   document.addEventListener('htmx:afterSwap', function(evt) {
     if (!evt.target || evt.target.id !== 'report-panel') return;
+    const panel = document.getElementById('report-panel');
     const buttons = document.querySelectorAll('.report-toggle');
     const isWeekly = evt.detail.xhr.responseURL && evt.detail.xhr.responseURL.includes('/reports/weekly');
+    if (panel) {
+      panel.dataset.activeReport = isWeekly ? 'weekly' : 'monthly';
+    }
     buttons.forEach(btn => {
       const wantsWeekly = btn.textContent.trim().toLowerCase() === 'weekly';
       if (wantsWeekly === isWeekly) {
@@ -205,18 +202,25 @@
     });
   });
 
-  (function initChannelChart() {
+  (function initChannelUI() {
     const chartCtx = document.getElementById('channelChart');
-    if (!chartCtx) return;
+    const cardsContainer = document.getElementById('channel-cards');
+    const reportPanel = document.getElementById('report-panel');
+    const monthlyBtn = document.querySelector('.report-toggle[data-report="monthly"]');
+    const weeklyBtn = document.querySelector('.report-toggle[data-report="weekly"]');
+    if (!chartCtx || !cardsContainer) return;
 
     const chartData = {{ channel_chart_data|tojson }};
+    const channelSales = {{ channel_sales_summary|tojson }};
     const labels = chartData?.labels || [];
     const currentYear = chartData?.year;
     const previousYear = chartData?.previous_year;
     const channels = chartData?.channels || {};
-    const defaultChannel = channels["US"] ? "US" : Object.keys(channels)[0] || "US";
+    let currentChannel = channels["US"] ? "US" : Object.keys(channels)[0] || "US";
 
     let chartInstance = null;
+    const monthlyBase = reportPanel?.dataset.monthlyUrl || '';
+    const weeklyBase = reportPanel?.dataset.weeklyUrl || '';
 
     function datasetFor(channelKey) {
       const data = channels[channelKey] || {
@@ -301,20 +305,61 @@
       }
     }
 
+    function renderCards(channelKey) {
+      const data = channelSales[channelKey] || {
+        currency: channelKey === 'CANADA' ? 'CAD' : 'USD',
+        ytd: 0, mtd: 0, week: 0,
+        ytd_start: '', mtd_start: '', week_start: '', today: '',
+      };
+      const setField = (selector, value) => {
+        const el = cardsContainer.querySelector(`[data-field="${selector}"]`);
+        if (el) el.textContent = value;
+      };
+      setField('ytd-amount', `${data.currency} ${Number(data.ytd || 0).toFixed(2)}`);
+      setField('mtd-amount', `${data.currency} ${Number(data.mtd || 0).toFixed(2)}`);
+      setField('week-amount', `${data.currency} ${Number(data.week || 0).toFixed(2)}`);
+      setField('ytd-range', `${data.ytd_start} → ${data.today}`);
+      setField('mtd-range', `${data.mtd_start} → ${data.today}`);
+      setField('week-range', `${data.week_start} → ${data.today}`);
+    }
+
+    function buildUrl(base, params) {
+      if (!base) return '';
+      const url = new URL(base, window.location.origin);
+      Object.entries(params || {}).forEach(([k, v]) => url.searchParams.set(k, v));
+      return url.pathname + url.search;
+    }
+
+    function refreshReportPanel() {
+      if (!reportPanel) return;
+      const activeReport = reportPanel.dataset.activeReport || 'monthly';
+      const monthlyUrl = buildUrl(monthlyBase, { partial: 1, channel: currentChannel });
+      const weeklyUrl = buildUrl(weeklyBase, { partial: 1, channel: currentChannel });
+      if (monthlyBtn && monthlyUrl) monthlyBtn.setAttribute('hx-get', monthlyUrl);
+      if (weeklyBtn && weeklyUrl) weeklyBtn.setAttribute('hx-get', weeklyUrl);
+      const targetUrl = activeReport === 'weekly' ? weeklyUrl : monthlyUrl;
+      if (targetUrl) {
+        htmx.ajax('GET', targetUrl, '#report-panel');
+      }
+    }
+
     function setActive(channelKey) {
-      document.querySelectorAll('.channel-toggle').forEach((btn) => {
+      currentChannel = channelKey;
+      document.querySelectorAll('.channel-select').forEach((btn) => {
         const isActive = btn.dataset.channel === channelKey;
         btn.classList.toggle('btn-primary', isActive);
         btn.classList.toggle('btn-outline', !isActive);
       });
       render(channelKey);
+      renderCards(channelKey);
+      refreshReportPanel();
     }
 
-    document.querySelectorAll('.channel-toggle').forEach((btn) => {
+    document.querySelectorAll('.channel-select').forEach((btn) => {
       btn.addEventListener('click', () => setActive(btn.dataset.channel));
     });
 
-    setActive(defaultChannel);
+    setActive(currentChannel);
   })();
 </script>
 {% endblock %}

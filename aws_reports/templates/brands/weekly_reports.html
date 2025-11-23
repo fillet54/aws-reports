@@ -11,7 +11,7 @@
       </p>
     </div>
     <div class="flex gap-2">
-      <a class="btn btn-outline" href="{{ url_for('brand_reports', brand_id=brand.id) }}">
+      <a class="btn btn-outline" href="{{ url_for('brand_reports', brand_id=brand.id, channel=current_channel) }}">
         Monthly reports
       </a>
       <a class="btn btn-outline" href="{{ url_for('brand_index', brand_id=brand.id) }}">
@@ -107,25 +107,18 @@
                     </tr>
                   </thead>
                   <tbody>
+                    {% set channel_label = 'US 🇺🇸' if current_channel == 'US' else 'Canada 🇨🇦' %}
                     {% set shipped   = week.totals.get("Shipped",   {"units": 0, "total_sales": 0.0}) %}
                     {% set unshipped = week.totals.get("Unshipped", {"units": 0, "total_sales": 0.0}) %}
                     {% set cancelled = week.totals.get("Cancelled", {"units": 0, "total_sales": 0.0}) %}
                     {% set combined_units = shipped.units + unshipped.units %}
                     {% set combined_sales = shipped.total_sales + unshipped.total_sales %}
-                    {% set us       = week.channel_totals.get("US",      {"units": 0, "total_sales": 0.0}) %}
-                    {% set canada   = week.channel_totals.get("CANADA",  {"units": 0, "total_sales": 0.0}) %}
+                    {% set selected_channel = week.channel_totals.get(current_channel, {"units": 0, "total_sales": 0.0}) %}
                     <tr>
-                      <td>US 🇺🇸</td>
-                      <td class="text-right">{{ us.units }}</td>
+                      <td>{{ channel_label }}</td>
+                      <td class="text-right">{{ selected_channel.units }}</td>
                       <td class="text-right">
-                        {{ "%.2f"|format(us.total_sales) }}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Canada 🇨🇦</td>
-                      <td class="text-right">{{ canada.units }}</td>
-                      <td class="text-right">
-                        {{ "%.2f"|format(canada.total_sales) }}
+                        {{ "%.2f"|format(selected_channel.total_sales) }}
                       </td>
                     </tr>
                     <tr>
@@ -154,16 +147,10 @@
                   <table class="table table-sm" data-sortable="true">
                     <thead>
                       <tr>
-                        <th rowspan="2" data-sort-key="asin" class="cursor-pointer align-bottom">ASIN</th>
-                        <th rowspan="2" data-sort-key="desc" class="cursor-pointer align-bottom">Description</th>
-                        <th colspan="2" class="text-center">US 🇺🇸</th>
-                        <th colspan="2" class="text-center">Canada 🇨🇦</th>
-                      </tr>
-                      <tr>
-                        <th data-sort-key="us_units" data-sort-type="number" class="text-right cursor-pointer">Units</th>
-                        <th data-sort-key="us_sales" data-sort-type="number" class="text-right cursor-pointer">Sales</th>
-                        <th data-sort-key="ca_units" data-sort-type="number" class="text-right cursor-pointer">Units</th>
-                        <th data-sort-key="ca_sales" data-sort-type="number" class="text-right cursor-pointer">Sales</th>
+                        <th data-sort-key="asin" class="cursor-pointer">ASIN</th>
+                        <th data-sort-key="desc" class="cursor-pointer">Description</th>
+                        <th data-sort-key="units" data-sort-type="number" class="text-right cursor-pointer">Units ({{ 'US 🇺🇸' if current_channel == 'US' else 'Canada 🇨🇦' }})</th>
+                        <th data-sort-key="sales" data-sort-type="number" class="text-right cursor-pointer">Sales ({{ 'US' if current_channel == 'US' else 'Canada' }})</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -171,8 +158,7 @@
                         {% set shipped   = asin_data.statuses.get("Shipped",   {"units": 0, "total_sales": 0.0}) %}
                         {% set unshipped = asin_data.statuses.get("Unshipped", {"units": 0, "total_sales": 0.0}) %}
                         {% set cancelled = asin_data.statuses.get("Cancelled", {"units": 0, "total_sales": 0.0}) %}
-                        {% set us = asin_data.channels.get("US", {"units": 0, "total_sales": 0.0}) %}
-                        {% set canada = asin_data.channels.get("CANADA", {"units": 0, "total_sales": 0.0}) %}
+                        {% set selected_channel = asin_data.channels.get(current_channel, {"units": 0, "total_sales": 0.0}) %}
                         <tr>
                           <td class="flex items-center gap-1">
                             <code>{{ asin }}</code>
@@ -193,10 +179,8 @@
                             </a>
                           </td>
                           <td><code>{{ asin_data["meta"]["title_override"] }}</code></td>
-                          <td class="text-right">{{ us.units }}</td>
-                          <td class="text-right">{{ "%.2f"|format(us.total_sales) }}</td>
-                          <td class="text-right">{{ canada.units }}</td>
-                          <td class="text-right">{{ "%.2f"|format(canada.total_sales) }}</td>
+                          <td class="text-right">{{ selected_channel.units }}</td>
+                          <td class="text-right">{{ "%.2f"|format(selected_channel.total_sales) }}</td>
                         </tr>
                       {% endfor %}
                     </tbody>

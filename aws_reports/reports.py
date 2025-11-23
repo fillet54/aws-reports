@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Dict, Any, Tuple
 
-def get_monthly_status_summary(conn, n_months: int) -> List[Dict[str, Any]]:
+def get_monthly_status_summary(conn, n_months: int, channel: str | None = None) -> List[Dict[str, Any]]:
     """
     Return past n_months of data as a list of month summaries, ordered
     from latest to earliest.
@@ -39,15 +39,28 @@ def get_monthly_status_summary(conn, n_months: int) -> List[Dict[str, Any]]:
     if n_months < 1:
         raise ValueError("n_months must be >= 1")
 
+    def resolve_channel_filter(ch: str | None):
+        if ch is None:
+            return None
+        c = ch.strip().lower()
+        if c == "us":
+            return "amazon.com"
+        if c == "canada":
+            return "amazon.ca"
+        return None
+
     cur = conn.cursor()
 
     # "Past N months" = from start of (N-1) months ago through now.
     offset = -(n_months - 1)  # 1 -> 0 months, 3 -> -2 months
     offset_expr = f"{offset} months"
+    channel_filter = resolve_channel_filter(channel)
+    channel_clause = "AND lower(COALESCE(o.sales_channel, '')) = ?" if channel_filter else ""
+    params = (offset_expr,) + ((channel_filter,) if channel_filter else ())
 
     # Pull rows + meta via LEFT JOIN
     cur.execute(
-        """
+        f"""
         SELECT
             strftime('%Y-%m', o.purchase_date) AS year_month,
             o.asin,
@@ -69,8 +82,9 @@ def get_monthly_status_summary(conn, n_months: int) -> List[Dict[str, Any]]:
           AND o.item_price IS NOT NULL
           AND (o.order_status IS NULL OR lower(o.order_status) <> 'pending')
           AND (o.item_status IS NULL OR lower(o.item_status) <> 'pending')
+          {channel_clause}
         """,
-        (offset_expr,),
+        params,
     )
     rows = cur.fetchall()
 
@@ -177,7 +191,7 @@ def get_monthly_status_summary(conn, n_months: int) -> List[Dict[str, Any]]:
     return result
 
 
-def get_weekly_status_summary(conn, start_date: str, end_date: str) -> List[Dict[str, Any]]:
+def get_weekly_status_summary(conn, start_date: str, end_date: str, channel: str | None = None) -> List[Dict[str, Any]]:
     """Return weekly summaries between start_date and end_date (inclusive)."""
     def parse_date_range(start: str, end: str) -> Tuple[str, str]:
         try:
@@ -193,9 +207,23 @@ def get_weekly_status_summary(conn, start_date: str, end_date: str) -> List[Dict
 
     start_iso, end_iso = parse_date_range(start_date, end_date)
 
+    def resolve_channel_filter(ch: str | None):
+        if ch is None:
+            return None
+        c = ch.strip().lower()
+        if c == "us":
+            return "amazon.com"
+        if c == "canada":
+            return "amazon.ca"
+        return None
+
+    channel_filter = resolve_channel_filter(channel)
+    channel_clause = "AND lower(COALESCE(o.sales_channel, '')) = ?" if channel_filter else ""
+    params = (start_iso, end_iso) + ((channel_filter,) if channel_filter else ())
+
     cur = conn.cursor()
     cur.execute(
-        """
+        f"""
         SELECT
             date(o.purchase_date, 'weekday 1', '-7 days') AS week_start,
             date(o.purchase_date, 'weekday 1', '-7 days', '+6 days') AS week_end,
@@ -219,8 +247,9 @@ def get_weekly_status_summary(conn, start_date: str, end_date: str) -> List[Dict
           AND o.item_price IS NOT NULL
           AND (o.order_status IS NULL OR lower(o.order_status) <> 'pending')
           AND (o.item_status IS NULL OR lower(o.item_status) <> 'pending')
+          {channel_clause}
         """,
-        (start_iso, end_iso),
+        params,
     )
     rows = cur.fetchall()
 
