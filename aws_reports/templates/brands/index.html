@@ -224,6 +224,13 @@
     let chartInstance = null;
     const monthlyBase = reportPanel?.dataset.monthlyUrl || '';
     const weeklyBase = reportPanel?.dataset.weeklyUrl || '';
+    let monthlyUrlState = null;
+    let weeklyUrlState = null;
+    let currentMonth = null;
+    let currentWeek = null;
+    let currentStartDate = null;
+    let currentEndDate = null;
+    let activeReport = reportPanel?.dataset.activeReport || 'monthly';
 
     function datasetFor(channelKey) {
       const data = channels[channelKey] || {
@@ -315,16 +322,52 @@
       return url.pathname + url.search;
     }
 
+    function mergeUrl(baseUrlState, fallbackBase, extraParams) {
+      const url = baseUrlState ? new URL(baseUrlState, window.location.origin) : new URL(fallbackBase, window.location.origin);
+      Object.entries(extraParams || {}).forEach(([k, v]) => {
+        if (v === null || v === undefined || v === '') {
+          url.searchParams.delete(k);
+        } else {
+          url.searchParams.set(k, v);
+        }
+      });
+      return url.pathname + url.search;
+    }
+
+    function updateHistory() {
+      const params = new URLSearchParams(window.location.search);
+      params.set('channel', currentChannel);
+      params.set('report', activeReport);
+      if (activeReport === 'monthly' && currentMonth) {
+        params.set('month', currentMonth);
+        params.delete('week');
+      } else if (activeReport === 'weekly') {
+        if (currentWeek) params.set('week', currentWeek);
+        if (currentStartDate) params.set('start_date', currentStartDate);
+        if (currentEndDate) params.set('end_date', currentEndDate);
+        params.delete('month');
+      }
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      window.history.replaceState({}, '', newUrl);
+    }
+
     function refreshReportPanel() {
       if (!reportPanel) return;
-      const activeReport = reportPanel.dataset.activeReport || 'monthly';
-      const monthlyUrl = buildUrl(monthlyBase, { partial: 1, channel: currentChannel });
-      const weeklyUrl = buildUrl(weeklyBase, { partial: 1, channel: currentChannel });
+      activeReport = reportPanel.dataset.activeReport || 'monthly';
+      const monthlyUrl = mergeUrl(monthlyUrlState, monthlyBase, { partial: 1, channel: currentChannel, month: currentMonth });
+      const weeklyUrl = mergeUrl(weeklyUrlState, weeklyBase, {
+        partial: 1,
+        channel: currentChannel,
+        week: currentWeek,
+        start_date: currentStartDate,
+        end_date: currentEndDate,
+      });
       if (monthlyBtn && monthlyUrl) monthlyBtn.setAttribute('hx-get', monthlyUrl);
       if (weeklyBtn && weeklyUrl) weeklyBtn.setAttribute('hx-get', weeklyUrl);
       const targetUrl = activeReport === 'weekly' ? weeklyUrl : monthlyUrl;
       if (targetUrl) {
         htmx.ajax('GET', targetUrl, '#report-panel');
+        updateHistory();
       }
     }
 
@@ -381,6 +424,34 @@
 
     document.querySelectorAll('.channel-select').forEach((btn) => {
       btn.addEventListener('click', () => setActive(btn.dataset.channel));
+    });
+
+    document.addEventListener('htmx:afterSwap', (evt) => {
+      if (!evt.target || evt.target.id !== 'report-panel') return;
+      const respUrl = evt.detail?.xhr?.responseURL;
+      if (respUrl) {
+        const url = new URL(respUrl, window.location.origin);
+        const isWeekly = url.pathname.includes('/reports/weekly');
+        reportPanel.dataset.activeReport = isWeekly ? 'weekly' : 'monthly';
+        if (isWeekly) {
+          weeklyUrlState = url;
+          currentWeek = url.searchParams.get('week') || currentWeek;
+          currentStartDate = url.searchParams.get('start_date') || currentStartDate;
+          currentEndDate = url.searchParams.get('end_date') || currentEndDate;
+        } else {
+          monthlyUrlState = url;
+          currentMonth = url.searchParams.get('month') || currentMonth;
+        }
+      }
+      const monthEl = evt.target.querySelector('[data-selected-month]');
+      if (monthEl && monthEl.dataset.selectedMonth) {
+        currentMonth = monthEl.dataset.selectedMonth;
+      }
+      const weekEl = evt.target.querySelector('[data-selected-week]');
+      if (weekEl && weekEl.dataset.selectedWeek) {
+        currentWeek = weekEl.dataset.selectedWeek;
+      }
+      updateHistory();
     });
 
     setActive(currentChannel);

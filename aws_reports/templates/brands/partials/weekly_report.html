@@ -26,7 +26,7 @@
   </div>
 
   {% if weekly_summaries %}
-    <div class="space-y-6">
+    <div class="space-y-6" data-selected-week="{{ selected_week }}" data-start-date="{{ start_date }}" data-end-date="{{ end_date }}">
       {% for week in weekly_summaries %}
         <div class="card bg-base-100 shadow">
           <div class="card-body space-y-4">

@@ -1,7 +1,7 @@
 <div class="space-y-4">
 
   {% if monthly_summaries %}
-    <div class="space-y-6">
+    <div class="space-y-6" data-selected-month="{{ selected_month }}">
       <div class="flex items-center justify-end">
         <select
           id="month-select"
