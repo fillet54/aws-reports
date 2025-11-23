@@ -109,23 +109,41 @@ def brand_index(brand_id: str):
 
     conn = get_brand_db(brand_id)
     try:
-        ytd_sales = reports.get_sales_total(conn, ytd_start.isoformat(), today.isoformat())
-        mtd_sales = reports.get_sales_total(conn, mtd_start.isoformat(), today.isoformat())
-        week_sales = reports.get_sales_total(conn, week_start.isoformat(), today.isoformat())
+        ytd_sales_all = reports.get_sales_total(conn, ytd_start.isoformat(), today.isoformat())
+        mtd_sales_all = reports.get_sales_total(conn, mtd_start.isoformat(), today.isoformat())
+        week_sales_all = reports.get_sales_total(conn, week_start.isoformat(), today.isoformat())
+
+        ytd_sales_by_channel = reports.get_sales_total_by_channel(conn, ytd_start.isoformat(), today.isoformat())
+        mtd_sales_by_channel = reports.get_sales_total_by_channel(conn, mtd_start.isoformat(), today.isoformat())
+        week_sales_by_channel = reports.get_sales_total_by_channel(conn, week_start.isoformat(), today.isoformat())
+
         latest_updated_date = reports.get_latest_last_updated_date(conn)
         channel_chart_data = reports.get_yearly_channel_monthly_totals(conn, today.year)
     finally:
         conn.close()
 
     sales_summary = {
-        "ytd": ytd_sales,
-        "mtd": mtd_sales,
-        "week": week_sales,
+        "ytd": ytd_sales_all,
+        "mtd": mtd_sales_all,
+        "week": week_sales_all,
         "today": today.isoformat(),
         "week_start": week_start.isoformat(),
         "mtd_start": mtd_start.isoformat(),
         "ytd_start": ytd_start.isoformat(),
     }
+
+    channel_sales_summary = {}
+    for channel_key, currency in (("US", "USD"), ("CANADA", "CAD")):
+        channel_sales_summary[channel_key] = {
+            "currency": currency,
+            "ytd": ytd_sales_by_channel.get(channel_key, 0.0),
+            "mtd": mtd_sales_by_channel.get(channel_key, 0.0),
+            "week": week_sales_by_channel.get(channel_key, 0.0),
+            "today": today.isoformat(),
+            "week_start": week_start.isoformat(),
+            "mtd_start": mtd_start.isoformat(),
+            "ytd_start": ytd_start.isoformat(),
+        }
 
     return render_template(
         "brands/index.html",
@@ -133,6 +151,7 @@ def brand_index(brand_id: str):
         sales_summary=sales_summary,
         latest_updated_date=latest_updated_date,
         channel_chart_data=channel_chart_data,
+        channel_sales_summary=channel_sales_summary,
     )
 
 

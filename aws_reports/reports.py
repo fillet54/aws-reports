@@ -355,6 +355,45 @@ def get_sales_total(conn, start_date: str, end_date: str) -> float:
     return float(row[0]) if row and row[0] is not None else 0.0
 
 
+def get_sales_total_by_channel(conn, start_date: str, end_date: str):
+    """
+    Like get_sales_total, but returns a dict keyed by channel (US, CANADA)
+    using sales_channel to bucket values.
+    """
+    def bucket_channel(channel: str | None):
+        c = (channel or "").strip().lower()
+        if c == "amazon.com":
+            return "US"
+        if c == "amazon.ca":
+            return "CANADA"
+        return None
+
+    totals = {"US": 0.0, "CANADA": 0.0}
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT sales_channel,
+               COALESCE(SUM(
+                 COALESCE(quantity, 0) * (COALESCE(item_price, 0.0) - COALESCE(item_promotion_discount, 0.0))
+               ), 0.0) AS total
+        FROM orders
+        WHERE purchase_date IS NOT NULL
+          AND date(purchase_date) BETWEEN ? AND ?
+          AND item_price IS NOT NULL
+          AND LOWER(COALESCE(item_status, '')) NOT IN ('cancelled', 'canceled')
+          AND (order_status IS NULL OR lower(order_status) <> 'pending')
+          AND (item_status IS NULL OR lower(item_status) <> 'pending')
+        GROUP BY sales_channel
+        """,
+        (start_date, end_date),
+    )
+    for channel, total in cur.fetchall():
+        bucket = bucket_channel(channel)
+        if bucket:
+            totals[bucket] = float(total or 0.0)
+    return totals
+
+
 def get_latest_last_updated_date(conn) -> str | None:
     """Return the most recent date portion of last_updated_date in orders."""
     cur = conn.cursor()

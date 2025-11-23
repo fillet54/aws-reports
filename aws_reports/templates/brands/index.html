@@ -33,42 +33,51 @@
     Brand ID: <code>{{ brand.id }}</code>
   </p>
 
-  {% if sales_summary %}
-    <div class="grid gap-4 md:grid-cols-3 mb-6">
-      <div class="card bg-base-100 shadow">
-        <div class="card-body">
-          <p class="text-sm text-base-content/70">Year to date</p>
-          <h3 class="text-2xl font-semibold">
-            ${{ "%.2f"|format(sales_summary.ytd) }}
-          </h3>
-          <p class="text-xs text-base-content/60">
-            {{ sales_summary.ytd_start }} → {{ sales_summary.today }}
-          </p>
+  {% if channel_sales_summary %}
+    {% for channel, summary in channel_sales_summary.items() %}
+      <div class="mb-6 space-y-2">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xl font-semibold">
+            {{ 'US' if channel == 'US' else 'Canada' }} ({{ summary.currency }})
+          </h2>
+        </div>
+        <div class="grid gap-4 md:grid-cols-3">
+          <div class="card bg-base-100 shadow">
+            <div class="card-body">
+              <p class="text-sm text-base-content/70">Year to date</p>
+              <h3 class="text-2xl font-semibold">
+                {{ summary.currency }} {{ "%.2f"|format(summary.ytd) }}
+              </h3>
+              <p class="text-xs text-base-content/60">
+                {{ summary.ytd_start }} → {{ summary.today }}
+              </p>
+            </div>
+          </div>
+          <div class="card bg-base-100 shadow">
+            <div class="card-body">
+              <p class="text-sm text-base-content/70">Month to date</p>
+              <h3 class="text-2xl font-semibold">
+                {{ summary.currency }} {{ "%.2f"|format(summary.mtd) }}
+              </h3>
+              <p class="text-xs text-base-content/60">
+                {{ summary.mtd_start }} → {{ summary.today }}
+              </p>
+            </div>
+          </div>
+          <div class="card bg-base-100 shadow">
+            <div class="card-body">
+              <p class="text-sm text-base-content/70">Current week</p>
+              <h3 class="text-2xl font-semibold">
+                {{ summary.currency }} {{ "%.2f"|format(summary.week) }}
+              </h3>
+              <p class="text-xs text-base-content/60">
+                {{ summary.week_start }} → {{ summary.today }}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="card bg-base-100 shadow">
-        <div class="card-body">
-          <p class="text-sm text-base-content/70">Month to date</p>
-          <h3 class="text-2xl font-semibold">
-            ${{ "%.2f"|format(sales_summary.mtd) }}
-          </h3>
-          <p class="text-xs text-base-content/60">
-            {{ sales_summary.mtd_start }} → {{ sales_summary.today }}
-          </p>
-        </div>
-      </div>
-      <div class="card bg-base-100 shadow">
-        <div class="card-body">
-          <p class="text-sm text-base-content/70">Current week</p>
-          <h3 class="text-2xl font-semibold">
-            ${{ "%.2f"|format(sales_summary.week) }}
-          </h3>
-          <p class="text-xs text-base-content/60">
-            {{ sales_summary.week_start }} → {{ sales_summary.today }}
-          </p>
-        </div>
-      </div>
-    </div>
+    {% endfor %}
   {% endif %}
 
   <div class="card bg-base-100 shadow mb-6">
