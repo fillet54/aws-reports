@@ -106,16 +106,28 @@ def brand_index(brand_id: str):
     ytd_start = today.replace(month=1, day=1)
     mtd_start = today.replace(day=1)
     week_start = today - timedelta(days=today.weekday())  # Monday of current week
+    # Prior-year date helpers (approx by subtracting 365 days to keep ranges aligned)
+    year_offset = timedelta(days=365)
+    ytd_start_prev = ytd_start - year_offset
+    mtd_start_prev = mtd_start - year_offset
+    week_start_prev = week_start - year_offset
+    today_prev = today - year_offset
 
     conn = get_brand_db(brand_id)
     try:
         ytd_sales_all = reports.get_sales_total(conn, ytd_start.isoformat(), today.isoformat())
         mtd_sales_all = reports.get_sales_total(conn, mtd_start.isoformat(), today.isoformat())
         week_sales_all = reports.get_sales_total(conn, week_start.isoformat(), today.isoformat())
+        ytd_sales_prev_all = reports.get_sales_total(conn, ytd_start_prev.isoformat(), today_prev.isoformat())
+        mtd_sales_prev_all = reports.get_sales_total(conn, mtd_start_prev.isoformat(), today_prev.isoformat())
+        week_sales_prev_all = reports.get_sales_total(conn, week_start_prev.isoformat(), today_prev.isoformat())
 
         ytd_sales_by_channel = reports.get_sales_total_by_channel(conn, ytd_start.isoformat(), today.isoformat())
         mtd_sales_by_channel = reports.get_sales_total_by_channel(conn, mtd_start.isoformat(), today.isoformat())
         week_sales_by_channel = reports.get_sales_total_by_channel(conn, week_start.isoformat(), today.isoformat())
+        ytd_sales_prev_by_channel = reports.get_sales_total_by_channel(conn, ytd_start_prev.isoformat(), today_prev.isoformat())
+        mtd_sales_prev_by_channel = reports.get_sales_total_by_channel(conn, mtd_start_prev.isoformat(), today_prev.isoformat())
+        week_sales_prev_by_channel = reports.get_sales_total_by_channel(conn, week_start_prev.isoformat(), today_prev.isoformat())
 
         latest_updated_date = reports.get_latest_last_updated_date(conn)
         channel_chart_data = reports.get_yearly_channel_monthly_totals(conn, today.year)
@@ -130,19 +142,40 @@ def brand_index(brand_id: str):
         "week_start": week_start.isoformat(),
         "mtd_start": mtd_start.isoformat(),
         "ytd_start": ytd_start.isoformat(),
+        "ytd_prev": ytd_sales_prev_all,
+        "mtd_prev": mtd_sales_prev_all,
+        "week_prev": week_sales_prev_all,
     }
+
+    def calc_change(curr: float, prev: float):
+        if prev == 0:
+            return None
+        return ((curr - prev) / prev) * 100.0
 
     channel_sales_summary = {}
     for channel_key, currency in (("US", "USD"), ("CANADA", "CAD")):
+        ytd_prev = ytd_sales_prev_by_channel.get(channel_key, 0.0)
+        mtd_prev = mtd_sales_prev_by_channel.get(channel_key, 0.0)
+        week_prev = week_sales_prev_by_channel.get(channel_key, 0.0)
         channel_sales_summary[channel_key] = {
             "currency": currency,
             "ytd": ytd_sales_by_channel.get(channel_key, 0.0),
+            "ytd_prev": ytd_prev,
+            "ytd_change": calc_change(ytd_sales_by_channel.get(channel_key, 0.0), ytd_prev),
             "mtd": mtd_sales_by_channel.get(channel_key, 0.0),
+            "mtd_prev": mtd_prev,
+            "mtd_change": calc_change(mtd_sales_by_channel.get(channel_key, 0.0), mtd_prev),
             "week": week_sales_by_channel.get(channel_key, 0.0),
+            "week_prev": week_prev,
+            "week_change": calc_change(week_sales_by_channel.get(channel_key, 0.0), week_prev),
             "today": today.isoformat(),
+            "today_prev": today_prev.isoformat(),
             "week_start": week_start.isoformat(),
+            "week_start_prev": week_start_prev.isoformat(),
             "mtd_start": mtd_start.isoformat(),
+            "mtd_start_prev": mtd_start_prev.isoformat(),
             "ytd_start": ytd_start.isoformat(),
+            "ytd_start_prev": ytd_start_prev.isoformat(),
         }
 
     return render_template(

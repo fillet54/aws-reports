@@ -47,6 +47,7 @@
             <p class="text-sm text-base-content/70">Year to date</p>
             <h3 class="text-2xl font-semibold" data-field="ytd-amount"></h3>
             <p class="text-xs text-base-content/60" data-field="ytd-range"></p>
+            <p class="text-xs font-semibold" data-field="ytd-change"></p>
           </div>
         </div>
         <div class="card bg-base-100 shadow">
@@ -54,6 +55,7 @@
             <p class="text-sm text-base-content/70">Month to date</p>
             <h3 class="text-2xl font-semibold" data-field="mtd-amount"></h3>
             <p class="text-xs text-base-content/60" data-field="mtd-range"></p>
+            <p class="text-xs font-semibold" data-field="mtd-change"></p>
           </div>
         </div>
         <div class="card bg-base-100 shadow">
@@ -61,6 +63,7 @@
             <p class="text-sm text-base-content/70">Current week</p>
             <h3 class="text-2xl font-semibold" data-field="week-amount"></h3>
             <p class="text-xs text-base-content/60" data-field="week-range"></p>
+            <p class="text-xs font-semibold" data-field="week-change"></p>
           </div>
         </div>
       </div>
@@ -305,24 +308,6 @@
       }
     }
 
-    function renderCards(channelKey) {
-      const data = channelSales[channelKey] || {
-        currency: channelKey === 'CANADA' ? 'CAD' : 'USD',
-        ytd: 0, mtd: 0, week: 0,
-        ytd_start: '', mtd_start: '', week_start: '', today: '',
-      };
-      const setField = (selector, value) => {
-        const el = cardsContainer.querySelector(`[data-field="${selector}"]`);
-        if (el) el.textContent = value;
-      };
-      setField('ytd-amount', `${data.currency} ${Number(data.ytd || 0).toFixed(2)}`);
-      setField('mtd-amount', `${data.currency} ${Number(data.mtd || 0).toFixed(2)}`);
-      setField('week-amount', `${data.currency} ${Number(data.week || 0).toFixed(2)}`);
-      setField('ytd-range', `${data.ytd_start} → ${data.today}`);
-      setField('mtd-range', `${data.mtd_start} → ${data.today}`);
-      setField('week-range', `${data.week_start} → ${data.today}`);
-    }
-
     function buildUrl(base, params) {
       if (!base) return '';
       const url = new URL(base, window.location.origin);
@@ -353,6 +338,45 @@
       render(channelKey);
       renderCards(channelKey);
       refreshReportPanel();
+    }
+
+    function formatChange(change) {
+      if (change === null || change === undefined) return '';
+      const dirUp = change > 0;
+      const dirFlat = change === 0;
+      const arrow = dirFlat ? '→' : dirUp ? '▲' : '▼';
+      const color = dirFlat ? 'text-base-content/60' : dirUp ? 'text-success' : 'text-error';
+      return { text: `${arrow} ${change.toFixed(1)}% vs LY`, className: color };
+    }
+
+    function renderCards(channelKey) {
+      const data = channelSales[channelKey] || {
+        currency: channelKey === 'CANADA' ? 'CAD' : 'USD',
+        ytd: 0, mtd: 0, week: 0,
+        ytd_start: '', mtd_start: '', week_start: '', today: '',
+        ytd_change: null, mtd_change: null, week_change: null,
+      };
+      const setField = (selector, value, className) => {
+        const el = cardsContainer.querySelector(`[data-field="${selector}"]`);
+        if (el) {
+          el.textContent = value;
+          if (className) {
+            el.className = `text-xs font-semibold ${className}`;
+          }
+        }
+      };
+      const ytdChange = formatChange(data.ytd_change);
+      const mtdChange = formatChange(data.mtd_change);
+      const weekChange = formatChange(data.week_change);
+      setField('ytd-amount', `${data.currency} ${Number(data.ytd || 0).toFixed(2)}`);
+      setField('mtd-amount', `${data.currency} ${Number(data.mtd || 0).toFixed(2)}`);
+      setField('week-amount', `${data.currency} ${Number(data.week || 0).toFixed(2)}`);
+      setField('ytd-range', `${data.ytd_start} → ${data.today}`);
+      setField('mtd-range', `${data.mtd_start} → ${data.today}`);
+      setField('week-range', `${data.week_start} → ${data.today}`);
+      setField('ytd-change', ytdChange.text || '', ytdChange.className);
+      setField('mtd-change', mtdChange.text || '', mtdChange.className);
+      setField('week-change', weekChange.text || '', weekChange.className);
     }
 
     document.querySelectorAll('.channel-select').forEach((btn) => {
