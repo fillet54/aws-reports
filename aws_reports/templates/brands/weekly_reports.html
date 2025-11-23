@@ -82,6 +82,24 @@
   </div>
 
   {% if weekly_summaries %}
+    <div class="flex justify-end mb-4">
+      <form method="get" class="flex items-center gap-2">
+        <input type="hidden" name="channel" value="{{ current_channel }}">
+        <input type="hidden" name="start_date" value="{{ start_date }}">
+        <input type="hidden" name="end_date" value="{{ end_date }}">
+        <select
+          name="week"
+          class="select select-bordered select-md font-semibold text-lg"
+          onchange="this.form.submit()"
+        >
+          {% for opt in week_options %}
+            <option value="{{ opt.label }}" {% if opt.label == selected_week %}selected{% endif %}>
+              {{ opt.display }}
+            </option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
     <div class="space-y-6">
       {% for week in weekly_summaries %}
         <div class="card bg-base-100 shadow">

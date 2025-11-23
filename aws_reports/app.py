@@ -370,6 +370,7 @@ def brand_weekly_reports(brand_id: str):
     channel = request.args.get("channel", "US").upper()
     if channel not in ("US", "CANADA"):
         channel = "US"
+    selected_week = request.args.get("week")
 
     today = datetime.utcnow().date()
     default_start = (today - timedelta(days=28)).isoformat()
@@ -405,6 +406,24 @@ def brand_weekly_reports(brand_id: str):
     finally:
         conn.close()
 
+    week_options = [
+        {
+            "label": w["week_label"],
+            "start": w["week_start"],
+            "end": w["week_end"],
+            "display": f"{w['week_label']} — {w['week_start']} → {w['week_end']}",
+        }
+        for w in weekly_summaries
+    ]
+    labels = [opt["label"] for opt in week_options]
+    if selected_week and selected_week not in labels:
+        selected_week = None
+    if not selected_week and week_options:
+        # weekly_summaries are sorted ascending; pick latest
+        selected_week = week_options[-1]["label"]
+    if selected_week:
+        weekly_summaries = [w for w in weekly_summaries if w["week_label"] == selected_week]
+
     is_partial = request.headers.get("HX-Request") or request.args.get("partial") == "1"
     template = "brands/partials/weekly_report.html" if is_partial else "brands/weekly_reports.html"
     return render_template(
@@ -414,6 +433,8 @@ def brand_weekly_reports(brand_id: str):
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
         current_channel=channel,
+        week_options=week_options,
+        selected_week=selected_week,
     )
 
 # -------------------------------------------------------------------

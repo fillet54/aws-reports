@@ -6,6 +6,23 @@
         {{ start_date }} – {{ end_date }}
       </p>
     </div>
+    <div>
+      <select
+        id="week-select"
+        name="week"
+        class="select select-bordered select-md font-semibold text-lg w-100"
+        hx-get="{{ url_for('brand_weekly_reports', brand_id=brand.id, partial=1, channel=current_channel, start_date=start_date, end_date=end_date) }}"
+        hx-target="#report-panel"
+        hx-swap="innerHTML"
+        hx-include="#week-select"
+      >
+        {% for opt in week_options %}
+          <option value="{{ opt.label }}" {% if opt.label == selected_week %}selected{% endif %}>
+            {{ opt.display }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
   </div>
 
   {% if weekly_summaries %}
@@ -13,15 +30,6 @@
       {% for week in weekly_summaries %}
         <div class="card bg-base-100 shadow">
           <div class="card-body space-y-4">
-            <div class="flex items-center justify-between">
-              <div>
-                <h3 class="card-title">{{ week.week_label }}</h3>
-                <p class="text-sm text-base-content/70">
-                  {{ week.week_start }} – {{ week.week_end }}
-                </p>
-              </div>
-            </div>
-
             <div>
               <h4 class="font-semibold mb-2">Totals</h4>
               <div class="overflow-x-auto">
