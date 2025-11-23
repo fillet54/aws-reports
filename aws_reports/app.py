@@ -328,7 +328,7 @@ def brand_reports(brand_id: str):
     selected_month = request.args.get("month")
 
     # How many months to show (you can make this configurable / query param)
-    n_months = 6
+    n_months = 12
 
     conn = get_brand_db(brand_id)
     try:
