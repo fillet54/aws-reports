@@ -113,6 +113,7 @@ def brand_index(brand_id: str):
         mtd_sales = reports.get_sales_total(conn, mtd_start.isoformat(), today.isoformat())
         week_sales = reports.get_sales_total(conn, week_start.isoformat(), today.isoformat())
         latest_updated_date = reports.get_latest_last_updated_date(conn)
+        channel_chart_data = reports.get_yearly_channel_monthly_totals(conn, today.year)
     finally:
         conn.close()
 
@@ -131,6 +132,7 @@ def brand_index(brand_id: str):
         brand=brand,
         sales_summary=sales_summary,
         latest_updated_date=latest_updated_date,
+        channel_chart_data=channel_chart_data,
     )
 
 
@@ -228,8 +230,9 @@ def import_orders_report(brand_id: str):
 
     # Very simple extension check, you can make this stricter if you like
     filename = file.filename
-    if not filename.lower().endswith(".csv"):
-        flash("Only .csv files are supported.", "error")
+    lowered = filename.lower()
+    if not (lowered.endswith(".csv") or lowered.endswith(".txt")):
+        flash("Only .csv or .txt files are supported.", "error")
         return redirect(url_for("brand_index", brand_id=brand["id"]))
 
     # Create a unique temp file name (brand + timestamp + original name)

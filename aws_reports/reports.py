@@ -367,3 +367,107 @@ def get_latest_last_updated_date(conn) -> str | None:
     )
     row = cur.fetchone()
     return row[0] if row and row[0] else None
+
+
+def get_yearly_channel_monthly_totals(conn, year: int):
+    """
+    Return per-month totals (units + sales) for each sales channel we care about.
+    Channels are bucketed as:
+      - Amazon.com -> US
+      - Amazon.ca  -> CANADA
+    Any other channels are ignored. Includes current year data plus previous year
+    sales for comparison.
+    """
+    start = f"{year}-01-01"
+    end = f"{year}-12-31"
+    prev_year = year - 1
+    prev_start = f"{prev_year}-01-01"
+    prev_end = f"{prev_year}-12-31"
+
+    def bucket_channel(channel: str | None):
+        c = (channel or "").strip().lower()
+        if c == "amazon.com":
+            return "US"
+        if c == "amazon.ca":
+            return "CANADA"
+        return None
+
+    months = [f"{m:02d}" for m in range(1, 13)]
+
+    def empty_months():
+        return {m: {"units": 0, "sales": 0.0} for m in months}
+
+    def collect(year_start: str, year_end: str):
+        collected = {
+            "US": empty_months(),
+            "CANADA": empty_months(),
+        }
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT
+                strftime('%m', purchase_date) AS month_num,
+                sales_channel,
+                SUM(COALESCE(quantity, 0)) AS units,
+                SUM(COALESCE(quantity, 0) * (COALESCE(item_price, 0.0) - COALESCE(item_promotion_discount, 0.0))) AS sales
+            FROM orders
+            WHERE purchase_date IS NOT NULL
+              AND date(purchase_date) BETWEEN ? AND ?
+              AND item_price IS NOT NULL
+              AND LOWER(COALESCE(item_status, '')) NOT IN ('cancelled', 'canceled')
+              AND (order_status IS NULL OR lower(order_status) <> 'pending')
+              AND (item_status IS NULL OR lower(item_status) <> 'pending')
+            GROUP BY month_num, sales_channel
+            """,
+            (year_start, year_end),
+        )
+
+        for month_num, sales_channel, units, sales in cur.fetchall():
+            bucket = bucket_channel(sales_channel)
+            if bucket is None or month_num is None:
+                continue
+            if month_num not in collected[bucket]:
+                continue
+            collected[bucket][month_num]["units"] += int(units or 0)
+            collected[bucket][month_num]["sales"] += float(sales or 0.0)
+        return collected
+
+    current = collect(start, end)
+    previous = collect(prev_start, prev_end)
+
+    labels = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+    ]
+
+    def channel_series(key: str):
+        curr = current.get(key, {})
+        prev = previous.get(key, {})
+        units_series = [curr.get(f"{i:02d}", {"units": 0})["units"] for i in range(1, 13)]
+        sales_series = [curr.get(f"{i:02d}", {"sales": 0.0})["sales"] for i in range(1, 13)]
+        prev_sales_series = [prev.get(f"{i:02d}", {"sales": 0.0})["sales"] for i in range(1, 13)]
+        return {
+            "units": units_series,
+            "sales": sales_series,
+            "previous_sales": prev_sales_series,
+        }
+
+    return {
+        "labels": labels,
+        "year": year,
+        "previous_year": prev_year,
+        "channels": {
+            "US": channel_series("US"),
+            "CANADA": channel_series("CANADA"),
+        },
+    }

@@ -71,6 +71,24 @@
     </div>
   {% endif %}
 
+  <div class="card bg-base-100 shadow mb-6">
+    <div class="card-body space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="card-title">Monthly performance</h2>
+          <p class="text-sm text-base-content/70">Units (bars) vs. sales (line) for the year.</p>
+        </div>
+        <div class="join join-sm">
+          <button class="btn btn-sm join-item btn-primary channel-toggle" data-channel="US">US 🇺🇸</button>
+          <button class="btn btn-sm join-item btn-outline channel-toggle" data-channel="CANADA">Canada 🇨🇦</button>
+        </div>
+      </div>
+      <div class="h-72">
+        <canvas id="channelChart" class="w-full h-full"></canvas>
+      </div>
+    </div>
+  </div>
+
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       <div class="mb-4 space-y-2">
@@ -125,8 +143,8 @@
       </form>
       <h3 class="font-bold text-lg mb-2">Import orders report</h3>
       <p class="text-sm text-base-content/70 mb-4">
-        Upload a CSV orders report for this brand. The data will be imported into
-        the SQLite database, and the original CSV will be archived.
+        Upload a CSV or TXT orders report for this brand. The data will be imported into
+        the SQLite database, and the original file will be archived.
       </p>
       <form
         method="post"
@@ -136,12 +154,12 @@
       >
         <label class="form-control w-full">
           <div class="label">
-            <span class="label-text font-semibold">Orders report (.csv)</span>
+            <span class="label-text font-semibold">Orders report (.csv or .txt)</span>
           </div>
           <input
             type="file"
             name="report_file"
-            accept=".csv,text/csv"
+            accept=".csv,text/csv,.txt,text/plain"
             class="file-input file-input-bordered w-full"
             required
           >
@@ -160,6 +178,7 @@
   </dialog>
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
   document.addEventListener('htmx:afterSwap', function(evt) {
     if (!evt.target || evt.target.id !== 'report-panel') return;
@@ -176,6 +195,118 @@
       }
     });
   });
+
+  (function initChannelChart() {
+    const chartCtx = document.getElementById('channelChart');
+    if (!chartCtx) return;
+
+    const chartData = {{ channel_chart_data|tojson }};
+    const labels = chartData?.labels || [];
+    const currentYear = chartData?.year;
+    const previousYear = chartData?.previous_year;
+    const channels = chartData?.channels || {};
+    const defaultChannel = channels["US"] ? "US" : Object.keys(channels)[0] || "US";
+
+    let chartInstance = null;
+
+    function datasetFor(channelKey) {
+      const data = channels[channelKey] || {
+        units: Array(labels.length).fill(0),
+        sales: Array(labels.length).fill(0),
+        previous_sales: Array(labels.length).fill(0),
+      };
+      return {
+        units: data.units,
+        sales: data.sales,
+        previousSales: data.previous_sales,
+      };
+    }
+
+    function render(channelKey) {
+      const data = datasetFor(channelKey);
+      if (!chartInstance) {
+        chartInstance = new Chart(chartCtx, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [
+              {
+                type: 'bar',
+                label: `Units${currentYear ? ` (${currentYear})` : ''}`,
+                data: data.units,
+                backgroundColor: 'rgba(59, 130, 246, 0.4)',
+                borderColor: 'rgba(37, 99, 235, 1)',
+                borderWidth: 1,
+                yAxisID: 'yUnits',
+              },
+              {
+                type: 'line',
+                label: `Sales${currentYear ? ` (${currentYear})` : ''}`,
+                data: data.sales,
+                borderColor: 'rgba(16, 185, 129, 1)',
+                backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                tension: 0.3,
+                fill: false,
+                yAxisID: 'ySales',
+              },
+              {
+                type: 'line',
+                label: `Sales${previousYear ? ` (${previousYear})` : ' (prev year)'}`,
+                data: data.previousSales,
+                borderColor: 'rgba(156, 163, 175, 1)',
+                backgroundColor: 'rgba(156, 163, 175, 0.15)',
+                borderDash: [6, 4],
+                tension: 0.3,
+                fill: false,
+                yAxisID: 'ySales',
+              },
+            ],
+          },
+          options: {
+            maintainAspectRatio: false,
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+              yUnits: {
+                type: 'linear',
+                position: 'left',
+                title: { display: true, text: 'Units' },
+              },
+              ySales: {
+                type: 'linear',
+                position: 'right',
+                title: { display: true, text: 'Sales' },
+                grid: { drawOnChartArea: false },
+              },
+            },
+            plugins: {
+              legend: { position: 'bottom' },
+            },
+          },
+        });
+      } else {
+        chartInstance.data.datasets[0].data = data.units;
+        chartInstance.data.datasets[1].data = data.sales;
+        chartInstance.data.datasets[2].data = data.previousSales;
+        chartInstance.update();
+      }
+    }
+
+    function setActive(channelKey) {
+      document.querySelectorAll('.channel-toggle').forEach((btn) => {
+        const isActive = btn.dataset.channel === channelKey;
+        btn.classList.toggle('btn-primary', isActive);
+        btn.classList.toggle('btn-outline', !isActive);
+      });
+      render(channelKey);
+    }
+
+    document.querySelectorAll('.channel-toggle').forEach((btn) => {
+      btn.addEventListener('click', () => setActive(btn.dataset.channel));
+    });
+
+    setActive(defaultChannel);
+  })();
 </script>
 {% endblock %}
 {% endblock %}
