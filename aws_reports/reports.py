@@ -1,6 +1,15 @@
 from datetime import datetime
 from typing import List, Dict, Any, Tuple
 
+
+def _order_revenue_expr(prefix: str | None = None) -> str:
+    """
+    Build the SQL expression for order revenue so all queries use the same
+    calculation: (item_price - item_promotion_discount).
+    """
+    p = f"{prefix}." if prefix else ""
+    return f"(COALESCE({p}item_price, 0.0) - COALESCE({p}item_promotion_discount, 0.0))"
+
 def get_monthly_status_summary(conn, n_months: int, channel: str | None = None) -> List[Dict[str, Any]]:
     """
     Return past n_months of data as a list of month summaries, ordered
@@ -49,8 +58,6 @@ def get_monthly_status_summary(conn, n_months: int, channel: str | None = None) 
             return "amazon.ca"
         return None
 
-    cur = conn.cursor()
-
     # "Past N months" = from start of (N-1) months ago through now.
     offset = -(n_months - 1)  # 1 -> 0 months, 3 -> -2 months
     offset_expr = f"{offset} months"
@@ -58,6 +65,8 @@ def get_monthly_status_summary(conn, n_months: int, channel: str | None = None) 
     channel_clause = "AND lower(COALESCE(o.sales_channel, '')) = ?" if channel_filter else ""
     params = (offset_expr,) + ((channel_filter,) if channel_filter else ())
 
+    order_revenue_expr = _order_revenue_expr("o")
+    cur = conn.cursor()
     # Pull rows + meta via LEFT JOIN
     cur.execute(
         f"""
@@ -66,7 +75,7 @@ def get_monthly_status_summary(conn, n_months: int, channel: str | None = None) 
             o.asin,
             o.item_status,
             COALESCE(o.quantity, 0)           AS quantity,
-            COALESCE(o.quantity, 0) * (COALESCE(o.item_price, 0.0) - COALESCE(o.item_promotion_discount, 0.0)) AS order_revenue,
+            {order_revenue_expr} AS order_revenue,
             o.sales_channel,
             m.title_override,
             m.brand,
@@ -221,6 +230,7 @@ def get_weekly_status_summary(conn, start_date: str, end_date: str, channel: str
     channel_clause = "AND lower(COALESCE(o.sales_channel, '')) = ?" if channel_filter else ""
     params = (start_iso, end_iso) + ((channel_filter,) if channel_filter else ())
 
+    order_revenue_expr = _order_revenue_expr("o")
     cur = conn.cursor()
     cur.execute(
         f"""
@@ -231,7 +241,7 @@ def get_weekly_status_summary(conn, start_date: str, end_date: str, channel: str
             o.asin,
             o.item_status,
             COALESCE(o.quantity, 0)           AS quantity,
-            COALESCE(o.quantity, 0) * (COALESCE(o.item_price, 0.0) - COALESCE(o.item_promotion_discount, 0.0)) AS order_revenue,
+            {order_revenue_expr} AS order_revenue,
             o.sales_channel,
             m.title_override,
             m.brand,
@@ -364,11 +374,12 @@ def get_sales_total(conn, start_date: str, end_date: str) -> float:
     quantity * (item_price - item_promotion_discount); tax and shipping are ignored.
     Dates must be YYYY-MM-DD strings.
     """
+    order_revenue_expr = _order_revenue_expr()
     cur = conn.cursor()
     cur.execute(
-        """
+        f"""
         SELECT COALESCE(SUM(
-            COALESCE(quantity, 0) * (COALESCE(item_price, 0.0) - COALESCE(item_promotion_discount, 0.0))
+            {order_revenue_expr}
         ), 0.0) AS total
         FROM orders
         WHERE purchase_date IS NOT NULL
@@ -398,12 +409,13 @@ def get_sales_total_by_channel(conn, start_date: str, end_date: str):
         return None
 
     totals = {"US": 0.0, "CANADA": 0.0}
+    order_revenue_expr = _order_revenue_expr()
     cur = conn.cursor()
     cur.execute(
-        """
+        f"""
         SELECT sales_channel,
                COALESCE(SUM(
-                 COALESCE(quantity, 0) * (COALESCE(item_price, 0.0) - COALESCE(item_promotion_discount, 0.0))
+                 {order_revenue_expr}
                ), 0.0) AS total
         FROM orders
         WHERE purchase_date IS NOT NULL
@@ -465,6 +477,8 @@ def get_yearly_channel_monthly_totals(conn, year: int):
     def empty_months():
         return {m: {"units": 0, "sales": 0.0} for m in months}
 
+    order_revenue_expr = _order_revenue_expr()
+
     def collect(year_start: str, year_end: str):
         collected = {
             "US": empty_months(),
@@ -472,12 +486,12 @@ def get_yearly_channel_monthly_totals(conn, year: int):
         }
         cur = conn.cursor()
         cur.execute(
-            """
+            f"""
             SELECT
                 strftime('%m', purchase_date) AS month_num,
                 sales_channel,
                 SUM(COALESCE(quantity, 0)) AS units,
-                SUM(COALESCE(quantity, 0) * (COALESCE(item_price, 0.0) - COALESCE(item_promotion_discount, 0.0))) AS sales
+                SUM({order_revenue_expr}) AS sales
             FROM orders
             WHERE purchase_date IS NOT NULL
               AND date(purchase_date) BETWEEN ? AND ?
