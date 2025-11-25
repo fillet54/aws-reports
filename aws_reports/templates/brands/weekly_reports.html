@@ -126,11 +126,6 @@
                   </thead>
                   <tbody>
                     {% set channel_label = 'US 🇺🇸' if current_channel == 'US' else 'Canada 🇨🇦' %}
-                    {% set shipped   = week.totals.get("Shipped",   {"units": 0, "total_sales": 0.0}) %}
-                    {% set unshipped = week.totals.get("Unshipped", {"units": 0, "total_sales": 0.0}) %}
-                    {% set cancelled = week.totals.get("Cancelled", {"units": 0, "total_sales": 0.0}) %}
-                    {% set combined_units = shipped.units + unshipped.units %}
-                    {% set combined_sales = shipped.total_sales + unshipped.total_sales %}
                     {% set selected_channel = week.channel_totals.get(current_channel, {"units": 0, "total_sales": 0.0}) %}
                     <tr>
                       <td>{{ channel_label }}</td>
@@ -140,17 +135,10 @@
                       </td>
                     </tr>
                     <tr>
-                      <td>Cancelled</td>
-                      <td class="text-right">{{ cancelled.units }}</td>
+                      <td>All channels</td>
+                      <td class="text-right">{{ week.totals.units }}</td>
                       <td class="text-right">
-                        {{ "%.2f"|format(cancelled.total_sales) }}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>All orders</td>
-                      <td class="text-right">{{ combined_units }}</td>
-                      <td class="text-right">
-                        {{ "%.2f"|format(combined_sales) }}
+                        {{ "%.2f"|format(week.totals.total_sales) }}
                       </td>
                     </tr>
                   </tbody>
@@ -173,9 +161,6 @@
                     </thead>
                     <tbody>
                       {% for asin, asin_data in week.by_asin.items() %}
-                        {% set shipped   = asin_data.statuses.get("Shipped",   {"units": 0, "total_sales": 0.0}) %}
-                        {% set unshipped = asin_data.statuses.get("Unshipped", {"units": 0, "total_sales": 0.0}) %}
-                        {% set cancelled = asin_data.statuses.get("Cancelled", {"units": 0, "total_sales": 0.0}) %}
                         {% set selected_channel = asin_data.channels.get(current_channel, {"units": 0, "total_sales": 0.0}) %}
                         <tr>
                           <td class="flex items-center gap-1">

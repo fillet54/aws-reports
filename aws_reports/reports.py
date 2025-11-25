@@ -15,35 +15,13 @@ def get_monthly_status_summary(conn, n_months: int, channel: str | None = None) 
     Return past n_months of data as a list of month summaries, ordered
     from latest to earliest.
 
-    Each month summary has:
-      {
-        "year_month": "YYYY-MM",
-        "by_asin": {
-           "<ASIN>": {
-              "meta": {
-                  "asin": "<ASIN>",
-                  "title_override": ...,
-                  "brand": ...,
-                  "category": ...,
-                  "subcategory": ...,
-                  "cost": ...,
-                  "launch_date": ...,
-                  "notes": ...,
-              },
-              "statuses": {
-                  "Shipped":   {"units": int, "total_sales": float},
-                  "Unshipped": {"units": int, "total_sales": float},
-                  "Cancelled": {"units": int, "total_sales": float},
-              }
-           },
-           ...
-        },
-        "totals": {
-           "Shipped":   {"units": int, "total_sales": float},
-           "Unshipped": {"units": int, "total_sales": float},
-           "Cancelled": {"units": int, "total_sales": float},
-        }
-      }
+    Each month summary now returns a simplified structure that reports
+    total units and sales (across all statuses) along with US/CANADA
+    channel breakouts:
+      - year_month: "YYYY-MM"
+      - totals: {"units": int, "total_sales": float}
+      - channel_totals: {"US": {...}, "CANADA": {...}}
+      - by_asin: same shape as totals/channel_totals per ASIN
     """
     if n_months < 1:
         raise ValueError("n_months must be >= 1")
@@ -73,7 +51,6 @@ def get_monthly_status_summary(conn, n_months: int, channel: str | None = None) 
         SELECT
             strftime('%Y-%m', o.purchase_date) AS year_month,
             o.asin,
-            o.item_status,
             COALESCE(o.quantity, 0)           AS quantity,
             {order_revenue_expr} AS order_revenue,
             o.sales_channel,
@@ -89,31 +66,11 @@ def get_monthly_status_summary(conn, n_months: int, channel: str | None = None) 
         WHERE o.purchase_date IS NOT NULL
           AND o.purchase_date >= date('now', 'start of month', ?)
           AND o.item_price IS NOT NULL
-          AND (o.order_status IS NULL OR lower(o.order_status) <> 'pending')
-          AND (o.item_status IS NULL OR lower(o.item_status) <> 'pending')
           {channel_clause}
         """,
         params,
     )
     rows = cur.fetchall()
-
-    def bucket_status(status: str):
-        s = (status or "").strip().lower()
-        if s == "shipped":
-            return "Shipped"
-        if s == "unshipped":
-            return "Unshipped"
-        if s in ("canceled", "cancelled"):
-            return "Cancelled"
-        # ignore others like Pending for this report
-        return None
-
-    def empty_status_buckets():
-        return {
-            "Shipped":   {"units": 0, "total_sales": 0.0},
-            "Unshipped": {"units": 0, "total_sales": 0.0},
-            "Cancelled": {"units": 0, "total_sales": 0.0},
-        }
 
     def bucket_channel(channel: str | None):
         c = (channel or "").strip().lower()
@@ -134,7 +91,6 @@ def get_monthly_status_summary(conn, n_months: int, channel: str | None = None) 
     for (
         year_month,
         asin,
-        item_status,
         qty,
         total,
         sales_channel,
@@ -146,16 +102,12 @@ def get_monthly_status_summary(conn, n_months: int, channel: str | None = None) 
         launch_date,
         notes,
     ) in rows:
-        status_bucket = bucket_status(item_status)
-        if status_bucket is None:
-            continue
-
         if year_month not in months:
             months[year_month] = {
                 "year_month": year_month,
                 "by_asin": {},
                 "channel_totals": empty_channel_buckets(),
-                "totals": empty_status_buckets(),
+                "totals": {"units": 0, "total_sales": 0.0},
             }
 
         month_entry = months[year_month]
@@ -175,16 +127,15 @@ def get_monthly_status_summary(conn, n_months: int, channel: str | None = None) 
                     "notes": notes,
                 },
                 "channels": empty_channel_buckets(),
-                "statuses": empty_status_buckets(),
+                "totals": {"units": 0, "total_sales": 0.0},
             }
 
-        asin_entry = by_asin[asin]["statuses"]
+        asin_totals = by_asin[asin]["totals"]
+        asin_totals["units"] += int(qty)
+        asin_totals["total_sales"] += float(total)
 
-        asin_entry[status_bucket]["units"] += int(qty)
-        asin_entry[status_bucket]["total_sales"] += float(total)
-
-        month_entry["totals"][status_bucket]["units"] += int(qty)
-        month_entry["totals"][status_bucket]["total_sales"] += float(total)
+        month_entry["totals"]["units"] += int(qty)
+        month_entry["totals"]["total_sales"] += float(total)
 
         channel_bucket = bucket_channel(sales_channel)
         if channel_bucket:
@@ -239,7 +190,6 @@ def get_weekly_status_summary(conn, start_date: str, end_date: str, channel: str
             date(o.purchase_date, 'weekday 1', '-7 days', '+6 days') AS week_end,
             strftime('%Y-W%W', o.purchase_date)            AS week_label,
             o.asin,
-            o.item_status,
             COALESCE(o.quantity, 0)           AS quantity,
             {order_revenue_expr} AS order_revenue,
             o.sales_channel,
@@ -255,30 +205,11 @@ def get_weekly_status_summary(conn, start_date: str, end_date: str, channel: str
         WHERE o.purchase_date IS NOT NULL
           AND date(o.purchase_date) BETWEEN ? AND ?
           AND o.item_price IS NOT NULL
-          AND (o.order_status IS NULL OR lower(o.order_status) <> 'pending')
-          AND (o.item_status IS NULL OR lower(o.item_status) <> 'pending')
           {channel_clause}
         """,
         params,
     )
     rows = cur.fetchall()
-
-    def bucket_status(status: str):
-        s = (status or "").strip().lower()
-        if s == "shipped":
-            return "Shipped"
-        if s == "unshipped":
-            return "Unshipped"
-        if s in ("canceled", "cancelled"):
-            return "Cancelled"
-        return None
-
-    def empty_status_buckets():
-        return {
-            "Shipped":   {"units": 0, "total_sales": 0.0},
-            "Unshipped": {"units": 0, "total_sales": 0.0},
-            "Cancelled": {"units": 0, "total_sales": 0.0},
-        }
 
     def bucket_channel(channel: str | None):
         c = (channel or "").strip().lower()
@@ -301,7 +232,6 @@ def get_weekly_status_summary(conn, start_date: str, end_date: str, channel: str
         week_end,
         week_label,
         asin,
-        item_status,
         qty,
         total,
         sales_channel,
@@ -313,10 +243,6 @@ def get_weekly_status_summary(conn, start_date: str, end_date: str, channel: str
         launch_date,
         notes,
     ) in rows:
-        status_bucket = bucket_status(item_status)
-        if status_bucket is None:
-            continue
-
         if week_label not in weeks:
             weeks[week_label] = {
                 "week_label": week_label,
@@ -324,7 +250,7 @@ def get_weekly_status_summary(conn, start_date: str, end_date: str, channel: str
                 "week_end": week_end,
                 "by_asin": {},
                 "channel_totals": empty_channel_buckets(),
-                "totals": empty_status_buckets(),
+                "totals": {"units": 0, "total_sales": 0.0},
             }
 
         week_entry = weeks[week_label]
@@ -343,16 +269,15 @@ def get_weekly_status_summary(conn, start_date: str, end_date: str, channel: str
                     "notes": notes,
                 },
                 "channels": empty_channel_buckets(),
-                "statuses": empty_status_buckets(),
+                "totals": {"units": 0, "total_sales": 0.0},
             }
 
-        asin_entry = by_asin[asin]["statuses"]
+        asin_totals = by_asin[asin]["totals"]
+        asin_totals["units"] += int(qty)
+        asin_totals["total_sales"] += float(total)
 
-        asin_entry[status_bucket]["units"] += int(qty)
-        asin_entry[status_bucket]["total_sales"] += float(total)
-
-        week_entry["totals"][status_bucket]["units"] += int(qty)
-        week_entry["totals"][status_bucket]["total_sales"] += float(total)
+        week_entry["totals"]["units"] += int(qty)
+        week_entry["totals"]["total_sales"] += float(total)
 
         channel_bucket = bucket_channel(sales_channel)
         if channel_bucket:
