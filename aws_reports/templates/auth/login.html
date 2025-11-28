@@ -1,0 +1,40 @@
+{% extends "layout.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+  <div class="max-w-md mx-auto card bg-base-100 shadow">
+    <div class="card-body space-y-4">
+      <h1 class="card-title">Log in</h1>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="space-y-2">
+            {% for category, message in messages %}
+              <div class="alert {{ 'alert-error' if category == 'error' else 'alert-success' }}">
+                <span>{{ message }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <form method="post" class="space-y-4">
+        <input type="hidden" name="next" value="{{ next_url }}">
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Username</span>
+          </label>
+          <input class="input input-bordered" type="text" name="username" required autofocus>
+        </div>
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Password</span>
+          </label>
+          <input class="input input-bordered" type="password" name="password" required>
+        </div>
+        <button class="btn btn-primary w-full" type="submit">Sign in</button>
+      </form>
+    </div>
+  </div>
+{% endblock %}

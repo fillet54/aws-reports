@@ -15,13 +15,47 @@ from flask import (
     abort,
     flash,
 )
+from flask_login import (
+    LoginManager,
+    UserMixin,
+    current_user,
+    login_required,
+    login_user,
+    logout_user,
+)
 
 from . import ingest, reports, asin_meta
 from .config import BRANDS_FILE, UPLOAD_TMP_DIR
 from .db import get_brand_db
+from . import user_db
 
 app = Flask(__name__)
 app.secret_key = "change-me"  # needed for flash()
+
+# -------------------------------------------------------------------
+# Auth setup
+# -------------------------------------------------------------------
+
+login_manager = LoginManager(app)
+login_manager.login_view = "login"
+
+
+class User(UserMixin):
+    def __init__(self, user_id: int, username: str):
+        self.id = str(user_id)
+        self.username = username
+
+
+@login_manager.user_loader
+def load_user(user_id: str):
+    try:
+        user_int = int(user_id)
+    except (TypeError, ValueError):
+        return None
+    user = user_db.get_user_by_id(user_int)
+    if not user:
+        return None
+    return User(user["id"], user["username"])
 
 # -------------------------------------------------------------------
 # Persistence helpers
@@ -83,13 +117,43 @@ def _safe_next_url() -> Optional[str]:
 # Routes
 # -------------------------------------------------------------------
 
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    next_url = _safe_next_url() or url_for("index")
+    if current_user.is_authenticated:
+        return redirect(next_url)
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        user = user_db.verify_user(username, password)
+        if user:
+            login_user(User(user["id"], user["username"]))
+            flash("Logged in successfully.", "success")
+            return redirect(next_url)
+        flash("Invalid username or password.", "error")
+
+    return render_template("auth/login.html", next_url=next_url)
+
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    flash("Logged out.", "success")
+    return redirect(url_for("login"))
+
+
 @app.route("/")
+@login_required
 def index():
     brands = load_brands()
     return render_template("index.html", brands=brands)
 
 
 @app.route("/choose-brand", methods=["POST"])
+@login_required
 def choose_brand():
     brand_id = request.form.get("brand_id", "").strip()
     if not brand_id:
@@ -99,6 +163,7 @@ def choose_brand():
 
 
 @app.route("/brands/<brand_id>")
+@login_required
 def brand_index(brand_id: str):
     brand = get_brand_or_404(brand_id)
 
@@ -193,6 +258,7 @@ def brand_index(brand_id: str):
 # -------------------------------------------------------------------
 
 @app.route("/brands/manage")
+@login_required
 def manage_brands():
     """Simple page listing brands with a 'new brand' button."""
     brands = load_brands()
@@ -200,6 +266,7 @@ def manage_brands():
 
 
 @app.route("/brands/new")
+@login_required
 def new_brand():
     """Show empty form to create a brand."""
     brand: Brand = {"id": "", "name": ""}
@@ -207,6 +274,7 @@ def new_brand():
 
 
 @app.route("/brands/<brand_id>/edit")
+@login_required
 def edit_brand(brand_id: str):
     """Show form to edit existing brand."""
     brand = get_brand_or_404(brand_id)
@@ -214,6 +282,7 @@ def edit_brand(brand_id: str):
 
 
 @app.route("/brands/save", methods=["POST"])
+@login_required
 def save_brand():
     """
     Create or update a brand.
@@ -263,6 +332,7 @@ def save_brand():
 # -------------------------------------------------------------------
 
 @app.route("/brands/<brand_id>/import", methods=["POST"])
+@login_required
 def import_orders_report(brand_id: str):
     """
     Upload a CSV orders report for this brand and import it.
@@ -316,6 +386,7 @@ def import_orders_report(brand_id: str):
 
 
 @app.route("/brands/<brand_id>/reports")
+@login_required
 def brand_reports(brand_id: str):
     """
     Show monthly status summary for this brand.
@@ -362,6 +433,7 @@ def brand_reports(brand_id: str):
 
 
 @app.route("/brands/<brand_id>/reports/weekly")
+@login_required
 def brand_weekly_reports(brand_id: str):
     """
     Show weekly status summary for a configurable date range.
@@ -442,6 +514,7 @@ def brand_weekly_reports(brand_id: str):
 # -------------------------------------------------------------------
 
 @app.route("/brands/<brand_id>/asin-meta")
+@login_required
 def asin_meta_index(brand_id: str):
     brand = get_brand_or_404(brand_id)
     conn = get_brand_db(brand_id)
@@ -454,6 +527,7 @@ def asin_meta_index(brand_id: str):
 
 
 @app.route("/brands/<brand_id>/asin-meta/new")
+@login_required
 def asin_meta_new(brand_id: str):
     brand = get_brand_or_404(brand_id)
     item = {
@@ -471,6 +545,7 @@ def asin_meta_new(brand_id: str):
 
 
 @app.route("/brands/<brand_id>/asin-meta/<asin>/edit")
+@login_required
 def asin_meta_edit(brand_id: str, asin: str):
     brand = get_brand_or_404(brand_id)
     conn = get_brand_db(brand_id)
@@ -492,6 +567,7 @@ def asin_meta_edit(brand_id: str, asin: str):
 
 
 @app.route("/brands/<brand_id>/asin-meta/save", methods=["POST"])
+@login_required
 def asin_meta_save(brand_id: str):
     next_url = _safe_next_url()
     brand = get_brand_or_404(brand_id)
@@ -554,6 +630,7 @@ def asin_meta_save(brand_id: str):
 
 
 @app.route("/brands/<brand_id>/asin-meta/<asin>/delete", methods=["POST"])
+@login_required
 def asin_meta_delete_route(brand_id: str, asin: str):
     brand = get_brand_or_404(brand_id)
     conn = get_brand_db(brand_id)

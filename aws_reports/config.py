@@ -10,6 +10,9 @@ BRANDS_FILE: Path = DATA_DIR / "brands.json"
 UPLOAD_TMP_DIR: Path = DATA_DIR / "tmp_uploads"
 UPLOAD_TMP_DIR.mkdir(parents=True, exist_ok=True)
 
+# Dedicated SQLite database for application users
+USER_DB_PATH: Path = DATA_DIR / "users.sqlite"
+
 
 def BRAND_PATH(brand_id: str) -> Path:
     path = DATA_DIR / "brands" / brand_id

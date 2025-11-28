@@ -80,6 +80,16 @@
     <div class="flex-1 px-2 text-xl font-bold">
       <a href="{{ url_for('index') }}">Buzz Beaute AWS Reporting</a>
     </div>
+    <div class="flex-none px-4">
+      {% if current_user.is_authenticated %}
+        <div class="flex items-center gap-3">
+          <span class="text-sm">Signed in as <strong>{{ current_user.username }}</strong></span>
+          <a class="btn btn-sm" href="{{ url_for('logout') }}">Log out</a>
+        </div>
+      {% else %}
+        <a class="btn btn-sm" href="{{ url_for('login') }}">Log in</a>
+      {% endif %}
+    </div>
   </div>
 
   <main class="container mx-auto p-4">
