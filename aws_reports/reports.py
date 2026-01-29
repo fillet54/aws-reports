@@ -311,8 +311,6 @@ def get_sales_total(conn, start_date: str, end_date: str) -> float:
           AND date(purchase_date) BETWEEN ? AND ?
           AND LOWER(COALESCE(item_status, '')) NOT IN ('cancelled', 'canceled')
           AND item_price IS NOT NULL
-          AND (order_status IS NULL OR lower(order_status) <> 'pending')
-          AND (item_status IS NULL OR lower(item_status) <> 'pending')
         """,
         (start_date, end_date),
     )
@@ -346,9 +344,6 @@ def get_sales_total_by_channel(conn, start_date: str, end_date: str):
         WHERE purchase_date IS NOT NULL
           AND date(purchase_date) BETWEEN ? AND ?
           AND item_price IS NOT NULL
-          AND LOWER(COALESCE(item_status, '')) NOT IN ('cancelled', 'canceled')
-          AND (order_status IS NULL OR lower(order_status) <> 'pending')
-          AND (item_status IS NULL OR lower(item_status) <> 'pending')
         GROUP BY sales_channel
         """,
         (start_date, end_date),
@@ -421,9 +416,6 @@ def get_yearly_channel_monthly_totals(conn, year: int):
             WHERE purchase_date IS NOT NULL
               AND date(purchase_date) BETWEEN ? AND ?
               AND item_price IS NOT NULL
-              AND LOWER(COALESCE(item_status, '')) NOT IN ('cancelled', 'canceled')
-              AND (order_status IS NULL OR lower(order_status) <> 'pending')
-              AND (item_status IS NULL OR lower(item_status) <> 'pending')
             GROUP BY month_num, sales_channel
             """,
             (year_start, year_end),
