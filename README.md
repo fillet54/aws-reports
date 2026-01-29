@@ -76,3 +76,10 @@ PY
 - macOS: `~/Library/Application Support/aws-reporting`
 - Windows: `%LOCALAPPDATA%\\aws-reporting` (or `%APPDATA%\\aws-reporting` fallback)
 
+### Build Docker Image and Publish to Local
+
+```bash
+docker build -t buzzbeaute:latest .
+sudo docker save buzzbeaute:latest | bzip2 | ssh -C admin@192.168.2.195 "/usr/local/bin/docker load"
+```
+
