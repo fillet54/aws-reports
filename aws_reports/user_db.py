@@ -37,6 +37,15 @@ def _row_to_user(row) -> Optional[Dict]:
     }
 
 
+def get_users() -> list[Dict]:
+    conn = get_user_db()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM users;")
+        return [_row_to_user(user) for user in cur.fetchall()]
+    finally:
+        conn.close()
+
 def get_user_by_id(user_id: int) -> Optional[Dict]:
     conn = get_user_db()
     try:
@@ -70,6 +79,29 @@ def create_user(username: str, password: str) -> Dict:
         cur.execute(
             "INSERT INTO users (username, password_hash) VALUES (?, ?)",
             (username, generate_password_hash(password)),
+        )
+        conn.commit()
+        user_id = cur.lastrowid
+        return {"id": user_id, "username": username, "password_hash": None}
+    finally:
+        conn.close()
+
+def update_user(username: str, new_password: str) -> Dict:
+    username = username.strip()
+    if not username:
+        raise ValueError("Username is required.")
+    if not new_password:
+        raise ValueError("Password is required.")
+
+    if get_user_by_username(username) is None:
+        raise ValueError("Username is unknown")
+
+    conn = get_user_db()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE users SET password_hash = ? WHERE username = ?",
+            (generate_password_hash(new_password), username),
         )
         conn.commit()
         user_id = cur.lastrowid
