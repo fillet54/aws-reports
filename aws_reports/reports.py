@@ -8,7 +8,7 @@ def _order_revenue_expr(prefix: str | None = None) -> str:
     calculation: (item_price - item_promotion_discount).
     """
     p = f"{prefix}." if prefix else ""
-    return f"(COALESCE({p}item_price, 0.0) - COALESCE({p}item_promotion_discount, 0.0))"
+    return f"(COALESCE({p}item_price, 0.0))"
 
 def get_monthly_status_summary(conn, n_months: int, channel: str | None = None) -> List[Dict[str, Any]]:
     """
