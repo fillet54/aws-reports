@@ -57,9 +57,37 @@ Commands:
 python manage.py sync_amazon                     # one sync of every enabled brand
 python manage.py sync_amazon --every 3600        # keep syncing hourly (what the worker runs)
 python manage.py sync_amazon --backfill-days 400 # load history by order date
-python manage.py import_report <brand-slug> file1.txt file2.txt
+python manage.py import_report <brand-slug> <files or folders> [--limit 1]
 python manage.py import_legacy ~/.local/share/aws-reporting   # from the old Flask app
+python manage.py compare_legacy ~/.local/share/aws-reporting  # check totals match the old app
 ```
+
+## Testing with real Seller Central exports
+
+The manual "All Orders" exports use the same format the SP-API sync downloads, so the saved exports are a good way to test the pipeline with real data.
+
+**Option 1: everything from the old app at once**
+
+```bash
+python manage.py import_legacy ~/.local/share/aws-reporting    # brands, product names, all archived files
+python manage.py compare_legacy ~/.local/share/aws-reporting --details
+```
+
+- `compare_legacy` compares monthly orders, units and sales per sales channel with the old app's `orders.sqlite`.
+- It groups by UTC month, like the old app did, so the numbers should match exactly.
+- With `--details`, a month that doesn't match lists the order IDs that only one side has.
+- The command exits with an error if anything differs.
+
+**Option 2: one file at a time, watching the app in between**
+
+```bash
+python manage.py import_report <brand-slug> path/to/raw/folder --limit 1
+```
+
+- Files are imported oldest first. Folders are searched recursively for `.txt/.tsv/.csv/.gz` files.
+- Files already imported are skipped, so running the command again imports the next one.
+- Each file prints how many orders were **new**, **changed** (e.g. Pending → Shipped) or **unchanged** since the previous file.
+- Each file's date comes from the old app's archive timestamp in the file name if there is one. Otherwise it's the newest `last-updated-date` inside the file, and failing that, the file's modification time.
 
 ## Front-end
 

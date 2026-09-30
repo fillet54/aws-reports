@@ -75,6 +75,8 @@ CHUNK = 500
 class IngestResult:
     report: RawReport
     duplicate: bool = False
+    # Orders seen for the first time; the rest of new_versions are changes.
+    new_orders: int = 0
 
     @property
     def new_versions(self) -> int:
@@ -193,7 +195,7 @@ def ingest_report(
         report.file.save(f"{brand.slug}-{stamp}-{sha[:12]}.tsv.gz", ContentFile(gzip.compress(content)), save=False)
         report.save()
 
-        report.new_versions = _store_versions(brand, report, by_order)
+        report.new_versions, new_orders = _store_versions(brand, report, by_order)
         report.save(update_fields=["new_versions"])
         _ensure_products(brand, rows)
 
@@ -201,10 +203,11 @@ def ingest_report(
         "Ingested %s for %s: %d rows, %d orders, %d new versions",
         report.get_source_display(), brand.slug, len(rows), len(by_order), report.new_versions,
     )
-    return IngestResult(report=report)
+    return IngestResult(report=report, new_orders=new_orders)
 
 
-def _store_versions(brand: Brand, report: RawReport, by_order: dict[str, list[dict]]) -> int:
+def _store_versions(brand: Brand, report: RawReport, by_order: dict[str, list[dict]]) -> tuple[int, int]:
+    """Store changed orders. Returns (versions created, of which brand-new orders)."""
     fetched_at = report.fetched_at
     tz = ZoneInfo(settings.REPORT_TIME_ZONE)
     marketplaces = {m.sales_channel.lower(): m for m in Marketplace.objects.all()}
@@ -221,6 +224,7 @@ def _store_versions(brand: Brand, report: RawReport, by_order: dict[str, list[di
     new_versions: list[OrderVersion] = []
     new_lines: list[list[dict]] = []
     demote: list[int] = []
+    new_orders = 0
 
     for order_id, rows in by_order.items():
         digest = order_hash(rows)
@@ -232,6 +236,8 @@ def _store_versions(brand: Brand, report: RawReport, by_order: dict[str, list[di
         if before and before[-1].content_hash == digest:
             continue
 
+        if not history:
+            new_orders += 1
         is_current = not after
         if is_current:
             demote.extend(v.id for v in history if v.is_current)
@@ -292,7 +298,7 @@ def _store_versions(brand: Brand, report: RawReport, by_order: dict[str, list[di
                 )
             )
     OrderLine.objects.bulk_create(lines, batch_size=CHUNK)
-    return len(new_versions)
+    return len(new_versions), new_orders
 
 
 def _ensure_products(brand: Brand, rows: list[dict[str, str]]) -> None:
