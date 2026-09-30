@@ -1,0 +1,39 @@
+{% load report_tags %}
+<div class="overflow-x-auto">
+  <table class="table table-sm" data-sortable>
+    <thead>
+      <tr>
+        <th data-sort="text">Product</th>
+        <th data-sort="text">ASIN</th>
+        {% if scope.all_brands %}<th data-sort="text">Brand</th>{% endif %}
+        <th data-sort="number" class="num">Orders</th>
+        <th data-sort="number" class="num">Units</th>
+        <th data-sort="number" class="num">Sales</th>
+        <th data-sort="number" class="num">Last year</th>
+        <th data-sort="number" class="num">vs LY</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for row in rows %}
+      <tr class="hover:bg-base-200">
+        <td class="max-w-xs">
+          {% if user.is_employee and row.brand_obj %}
+          <a class="link link-hover font-medium" href="{% url 'catalog:product_edit' row.brand_obj.slug row.asin %}?next={{ request.get_full_path|urlencode }}" title="Edit product name">{% if row.product %}{{ row.product.display_title }}{% else %}{{ row.asin }}{% endif %}</a>
+          {% else %}
+          <span class="font-medium">{% if row.product %}{{ row.product.display_title }}{% else %}{{ row.asin }}{% endif %}</span>
+          {% endif %}
+        </td>
+        <td class="font-mono text-xs">{{ row.asin }}</td>
+        {% if scope.all_brands %}<td>{{ row.brand_obj.name }}</td>{% endif %}
+        <td class="num">{{ row.orders }}</td>
+        <td class="num">{{ row.units }}</td>
+        <td class="num" data-value="{{ row.sales }}">{{ row.sales|money:currency }}</td>
+        <td class="num text-base-content/60" data-value="{{ row.prev.sales }}">{{ row.prev.sales|money:currency }}</td>
+        <td class="num" data-value="{{ row.sales_change|default_if_none:'' }}">{% change row.sales_change True %}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="8" class="text-center text-base-content/60 py-6">No sales in this period.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>

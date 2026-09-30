@@ -1,0 +1,63 @@
+{% load report_tags %}
+<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+  {% with s=summary %}
+  <div class="card bg-base-100 shadow-sm"><div class="card-body p-5 gap-1">
+    <span class="text-sm font-medium text-base-content/70">Sales</span>
+    <span class="text-3xl font-bold tabular-nums">{{ s.current.sales|money0:currency }}</span>
+    <div class="text-xs text-base-content/60 flex flex-col gap-0.5">
+      <span>vs previous {{ period.kind }}: {% change s.vs_prev.sales_change True %} <span class="opacity-70">({{ s.vs_prev.prev.sales|money0:currency }})</span></span>
+      <span>vs last year: {% change s.vs_ly.sales_change True %} <span class="opacity-70">({{ s.vs_ly.prev.sales|money0:currency }})</span></span>
+    </div>
+  </div></div>
+  <div class="card bg-base-100 shadow-sm"><div class="card-body p-5 gap-1">
+    <span class="text-sm font-medium text-base-content/70">Units</span>
+    <span class="text-3xl font-bold tabular-nums">{{ s.current.units }}</span>
+    <div class="text-xs text-base-content/60 flex flex-col gap-0.5">
+      <span>vs previous {{ period.kind }}: {% change s.vs_prev.units_change True %}</span>
+      <span>vs last year: {% change s.vs_ly.units_change True %}</span>
+    </div>
+  </div></div>
+  <div class="card bg-base-100 shadow-sm"><div class="card-body p-5 gap-1">
+    <span class="text-sm font-medium text-base-content/70">Orders</span>
+    <span class="text-3xl font-bold tabular-nums">{{ s.current.orders }}</span>
+    <div class="text-xs text-base-content/60 flex flex-col gap-0.5">
+      <span>vs previous {{ period.kind }}: {% change s.vs_prev.orders_change True %}</span>
+      <span>vs last year: {% change s.vs_ly.orders_change True %}</span>
+    </div>
+  </div></div>
+  <div class="card bg-base-100 shadow-sm"><div class="card-body p-5 gap-1">
+    <span class="text-sm font-medium text-base-content/70">Average order</span>
+    <span class="text-3xl font-bold tabular-nums">{{ s.aov|money:currency }}</span>
+    <div class="text-xs text-base-content/60">Sales ÷ orders</div>
+  </div></div>
+  {% endwith %}
+</div>
+
+{% if partial %}
+<div role="alert" class="alert alert-soft alert-info mb-6 text-sm">
+  This {{ period.kind }} isn't over yet. Numbers cover {{ period.start|date:"M j" }} – {{ through|date:"M j" }}, and comparisons use the same number of days.
+</div>
+{% endif %}
+
+<section class="card bg-base-100 shadow-sm mb-6">
+  <div class="card-body p-5">
+    <div class="flex flex-wrap justify-between items-center gap-2">
+      <h2 class="card-title text-base">Daily sales</h2>
+      {% include "reports/_currency_note.html" %}
+    </div>
+    <div class="chart-box"><canvas id="daily-chart"></canvas></div>
+  </div>
+</section>
+
+<div class="mb-6">
+  {% include "reports/_breakdowns.html" with breakdown_label=period.range_label %}
+</div>
+
+<section class="card bg-base-100 shadow-sm">
+  <div class="card-body p-5">
+    <h2 class="card-title text-base">Products <span class="text-sm font-normal text-base-content/60">{{ period.range_label }} · compared with {{ ly_period.range_label }}</span></h2>
+    {% include "reports/_products_table.html" with rows=products %}
+  </div>
+</section>
+
+{{ chart|json_script:"daily-chart-data" }}

@@ -1,0 +1,22 @@
+{% if field.is_hidden %}{{ field }}{% else %}
+<fieldset class="fieldset">
+  {% if field.widget_type == "checkbox" %}
+  <label class="label cursor-pointer justify-start gap-3 text-base-content">
+    {{ field }} <span>{{ field.label }}</span>
+  </label>
+  {% else %}
+  <legend class="fieldset-legend">{{ field.label }}{% if field.field.required %} <span class="text-error">*</span>{% endif %}</legend>
+  {% if field.widget_type == "checkboxselectmultiple" %}
+  <div class="flex flex-wrap gap-4">
+    {% for option in field %}
+    <label class="label cursor-pointer gap-2 text-base-content">{{ option.tag }} {{ option.choice_label }}</label>
+    {% endfor %}
+  </div>
+  {% else %}
+  {{ field }}
+  {% endif %}
+  {% endif %}
+  {% if field.help_text %}<p class="label text-xs whitespace-normal">{{ field.help_text|safe }}</p>{% endif %}
+  {% for error in field.errors %}<p class="text-error text-sm">{{ error }}</p>{% endfor %}
+</fieldset>
+{% endif %}

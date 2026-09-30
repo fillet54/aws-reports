@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load report_tags %}
+{% block title %}{{ period.label }}{% endblock %}
+
+{% block content %}
+<div class="card bg-base-100 shadow-sm mb-6 border-l-4 border-primary">
+  <div class="card-body p-5 flex-row flex-wrap items-center justify-between gap-4">
+    <div>
+      <p class="text-sm text-base-content/60">Shared report · {% if brand %}{{ brand.name }}{% else %}All brands{% endif %}{% if current_store %} · {{ current_store.name }}{% endif %}</p>
+      <h1 class="text-2xl font-bold">{{ period.label }}</h1>
+      <p class="text-sm text-base-content/70">
+        {{ period.range_label }} · Frozen at <strong>{{ shared.data_cutoff|date:"D M j, g:i A T" }}</strong>
+        {% if shared.refreshed_at %}(refreshed by {{ shared.refreshed_by.username|default:"someone" }}){% else %}(created by {{ shared.created_by.username|default:"someone" }}){% endif %}
+      </p>
+    </div>
+    <div class="flex flex-wrap gap-2 no-print">
+      <button type="button" class="btn btn-sm" data-copy="{{ share_url }}">Copy link</button>
+      <button type="button" class="btn btn-sm" onclick="window.print()">Print</button>
+      <form method="post" action="{% url 'reports:shared_refresh' shared.token %}" onsubmit="return confirm('Update this report to the latest data? Everyone with the link will see the new numbers.');">
+        {% csrf_token %}
+        <button class="btn btn-sm btn-primary" type="submit">Refresh data</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% include "reports/_period_report.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script>renderComparisonChart("daily-chart", "daily-chart-data", "bar");</script>
+{% endblock %}

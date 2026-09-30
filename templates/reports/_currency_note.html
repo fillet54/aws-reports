@@ -1,0 +1,5 @@
+{% if scope.converts_currency %}
+<p class="text-xs text-base-content/60 flex-none">Amounts in USD. Canadian sales converted at {% for m in nav_marketplaces %}{% if m.currency != "USD" %}{{ m.currency }}→USD {{ m.usd_rate|floatformat:4 }}{% if not forloop.last %}, {% endif %}{% endif %}{% endfor %}.</p>
+{% else %}
+<p class="text-xs text-base-content/60 flex-none">Amounts in {{ currency }} ({{ current_store.name }} store).</p>
+{% endif %}

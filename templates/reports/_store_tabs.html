@@ -1,0 +1,6 @@
+<div role="tablist" class="tabs tabs-box tabs-sm bg-base-100 no-print">
+  <a role="tab" href="{% querystring store=None %}" class="tab {% if not current_store %}tab-active{% endif %}">All stores</a>
+  {% for m in nav_marketplaces %}
+  <a role="tab" href="{% querystring store=m.code %}" class="tab {% if current_store and current_store.pk == m.pk %}tab-active{% endif %}">{{ m.code }}</a>
+  {% endfor %}
+</div>

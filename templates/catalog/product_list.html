@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{{ brand.name }} products{% endblock %}
+{% block content %}
+<div class="flex flex-wrap items-end justify-between gap-4 mb-6">
+  <div>
+    <p class="text-sm text-base-content/60">{{ brand.name }}</p>
+    <h1 class="text-2xl font-bold">Products</h1>
+    <p class="text-sm text-base-content/60">Products are keyed by ASIN and added automatically when they show up in orders.{% if user.is_employee %} Edit a product to change the name used in reports.{% endif %}</p>
+  </div>
+  <div class="flex gap-2">
+    <form method="get"><input type="search" name="q" value="{{ q }}" placeholder="Search ASIN, name, SKU…" class="input input-sm input-bordered w-64"></form>
+    {% if user.is_employee %}<a class="btn btn-sm btn-primary" href="{% url 'catalog:product_create' brand.slug %}">Add ASIN</a>{% endif %}
+  </div>
+</div>
+<div class="card bg-base-100 shadow-sm"><div class="card-body p-0 overflow-x-auto">
+  <table class="table" data-sortable>
+    <thead><tr><th data-sort="text">ASIN</th><th data-sort="text">Report name</th><th data-sort="text">Amazon title</th><th data-sort="text">SKU</th><th data-sort="text">Category</th>{% if user.is_employee %}<th></th>{% endif %}</tr></thead>
+    <tbody>
+    {% for p in products %}
+      <tr class="hover:bg-base-200">
+        <td class="font-mono text-sm"><a class="link link-hover" href="https://www.amazon.com/dp/{{ p.asin }}" target="_blank" rel="noopener">{{ p.asin }}</a></td>
+        <td class="font-medium">{{ p.title|default:"—" }}</td>
+        <td class="text-sm text-base-content/60 max-w-md truncate" title="{{ p.amazon_title }}">{{ p.amazon_title|default:"—" }}</td>
+        <td class="text-sm">{{ p.sku|default:"—" }}</td>
+        <td class="text-sm">{{ p.category|default:"—" }}</td>
+        {% if user.is_employee %}<td class="text-right"><a class="btn btn-xs" href="{% url 'catalog:product_edit' brand.slug p.asin %}">Edit</a></td>{% endif %}
+      </tr>
+    {% empty %}
+      <tr><td colspan="6" class="text-center py-8 text-base-content/60">No products{% if q %} match “{{ q }}”{% endif %}.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endblock %}

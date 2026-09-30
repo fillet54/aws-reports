@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Brands{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-2xl font-bold">Brands</h1>
+    <p class="text-sm text-base-content/60">Each brand is one Amazon seller account.</p>
+  </div>
+  <a href="{% url 'catalog:brand_create' %}" class="btn btn-primary btn-sm">New brand</a>
+</div>
+<div class="card bg-base-100 shadow-sm"><div class="card-body p-0 overflow-x-auto">
+  <table class="table">
+    <thead><tr><th>Brand</th><th>Stores</th><th>Amazon connection</th><th>Last sync</th><th></th></tr></thead>
+    <tbody>
+    {% for b in brands %}
+      <tr class="hover:bg-base-200">
+        <td><a class="link link-hover font-medium" href="{% url 'reports:brand_dashboard' b.slug %}">{{ b.name }}</a><div class="text-xs text-base-content/50 font-mono">{{ b.slug }}</div></td>
+        <td>{% for m in b.marketplaces.all %}<span class="badge badge-sm badge-outline mr-1">{{ m.code }}</span>{% empty %}<span class="text-base-content/50">—</span>{% endfor %}</td>
+        <td>{% if b.has_refresh_token %}<span class="badge badge-success badge-soft badge-sm">Authorized</span>{% else %}<span class="badge badge-ghost badge-sm">Not connected</span>{% endif %}{% if not b.sync_enabled %} <span class="badge badge-warning badge-soft badge-sm">Sync off</span>{% endif %}</td>
+        <td class="text-sm text-base-content/60">{% if b.last_synced_at %}{{ b.last_synced_at|timesince }} ago{% else %}Never{% endif %}</td>
+        <td class="text-right whitespace-nowrap">
+          <a class="btn btn-xs" href="{% url 'catalog:product_list' b.slug %}">Products</a>
+          <a class="btn btn-xs" href="{% url 'catalog:brand_edit' b.slug %}">Settings</a>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5" class="text-center py-8 text-base-content/60">No brands yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endblock %}

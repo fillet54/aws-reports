@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Users{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-2xl font-bold">Users</h1>
+    <p class="text-sm text-base-content/60">Employees see every brand. Clients see one brand, read-only.</p>
+  </div>
+  <a href="{% url 'accounts:user_create' %}" class="btn btn-primary btn-sm">New user</a>
+</div>
+<div class="card bg-base-100 shadow-sm"><div class="card-body p-0 overflow-x-auto">
+  <table class="table" data-sortable>
+    <thead><tr><th data-sort="text">Username</th><th data-sort="text">Name</th><th data-sort="text">Role</th><th data-sort="text">Brand</th><th data-sort="text">Last login</th><th></th></tr></thead>
+    <tbody>
+    {% for u in users %}
+      <tr class="hover:bg-base-200 {% if not u.is_active %}opacity-50{% endif %}">
+        <td class="font-medium">{{ u.username }}{% if u.is_superuser %} <span class="badge badge-sm badge-neutral">admin</span>{% endif %}{% if not u.is_active %} <span class="badge badge-sm">inactive</span>{% endif %}</td>
+        <td>{{ u.get_full_name|default:"—" }}</td>
+        <td>{% if u.is_employee %}<span class="badge badge-primary badge-soft">Employee</span>{% else %}<span class="badge badge-secondary badge-soft">Client</span>{% endif %}</td>
+        <td>{% if u.is_employee %}<span class="text-base-content/60">All brands</span>{% else %}{{ u.brand.name }}{% endif %}</td>
+        <td class="text-sm text-base-content/60">{{ u.last_login|date:"M j, Y"|default:"Never" }}</td>
+        <td class="text-right whitespace-nowrap">
+          <a class="btn btn-xs" href="{% url 'accounts:user_edit' u.pk %}">Edit</a>
+          <a class="btn btn-xs" href="{% url 'accounts:user_set_password' u.pk %}">Set password</a>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endblock %}

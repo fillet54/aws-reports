@@ -1,23 +1,26 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
-# App writes all state under XDG_DATA_HOME via aws_reports.userdirs.user_data_dir()
-# which becomes: $XDG_DATA_HOME/aws-reporting
-ENV XDG_DATA_HOME=/data
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH=/app
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    DATA_DIR=/data
 
-# Runtime deps (from pyproject.toml)
-RUN pip install --no-cache-dir flask flask-login docopt
+COPY pyproject.toml README.md ./
+COPY config/ ./config/
+COPY apps/ ./apps/
+RUN pip install --no-cache-dir .
 
-COPY aws_reports/ ./aws_reports/
+COPY manage.py ./
+COPY templates/ ./templates/
+# static/css/app.css is prebuilt (npm run build) and committed, so no Node here.
+COPY static/ ./static/
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# Persist all app data (users.sqlite, brands.json, per-brand orders.sqlite, tmp_uploads)
+# SQLite DB (when used) and raw report files live here.
 VOLUME ["/data"]
-
 EXPOSE 8080
 
-CMD ["python", "-c", "from aws_reports.app import app; app.run(host='0.0.0.0', port=8080, debug=False)"]
-
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8080", "--workers", "3", "--timeout", "120"]

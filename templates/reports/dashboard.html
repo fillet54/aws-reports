@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% load report_tags %}
+{% block title %}{% if brand %}{{ brand.name }}{% else %}All brands{% endif %}{% endblock %}
+
+{% block content %}
+<div class="flex flex-wrap items-end justify-between gap-4 mb-6">
+  <div>
+    <p class="text-sm text-base-content/60">Dashboard</p>
+    <h1 class="text-2xl font-bold">{% if brand %}{{ brand.name }}{% else %}All brands{% endif %}{% if current_store %} <span class="text-base-content/50 font-normal">· {{ current_store.name }}</span>{% endif %}</h1>
+    <p class="text-xs text-base-content/60 mt-1">
+      {% if last_synced %}Data synced {{ last_synced|timesince }} ago{% else %}No data synced yet{% endif %}
+      · Dates in {{ report_time_zone }}
+    </p>
+  </div>
+  <div class="flex items-center gap-2">
+    {% include "reports/_store_tabs.html" %}
+    <a class="btn btn-sm btn-primary" href="{% if brand %}{% url 'reports:brand_report' brand.slug %}{% else %}{% url 'reports:overview_report' %}{% endif %}{% if current_store %}?store={{ current_store.code }}{% endif %}">Weekly &amp; monthly reports →</a>
+  </div>
+</div>
+
+<div class="grid gap-4 md:grid-cols-3 mb-6">
+  {% for label, start, kpi in kpis %}
+  <div class="card bg-base-100 shadow-sm">
+    <div class="card-body p-5 gap-1">
+      <div class="flex justify-between items-center">
+        <span class="text-sm font-medium text-base-content/70">{{ label }}</span>
+        <span class="text-xs text-base-content/50">{{ start|date:"M j" }} – now</span>
+      </div>
+      <div class="flex items-baseline gap-3">
+        <span class="text-3xl font-bold tabular-nums">{{ kpi.sales|money0:currency }}</span>
+        {% change kpi.sales_change %}
+      </div>
+      <div class="text-xs text-base-content/60">
+        Same point last year: {{ kpi.prev.sales|money0:currency }}
+      </div>
+      <div class="flex gap-4 mt-2 text-sm">
+        <span><span class="font-semibold tabular-nums">{{ kpi.units }}</span> units {% change kpi.units_change True %}</span>
+        <span><span class="font-semibold tabular-nums">{{ kpi.orders }}</span> orders</span>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<section class="card bg-base-100 shadow-sm mb-6">
+  <div class="card-body p-5">
+    <div class="flex flex-wrap justify-between items-center gap-x-4 gap-y-1">
+      <h2 class="card-title text-base">Monthly sales</h2>
+      {% include "reports/_currency_note.html" %}
+    </div>
+    <div class="chart-box"><canvas id="monthly-chart"></canvas></div>
+  </div>
+</section>
+
+<div class="mb-6">
+  {% include "reports/_breakdowns.html" %}
+</div>
+
+<section class="card bg-base-100 shadow-sm">
+  <div class="card-body p-5">
+    <div class="flex justify-between items-center">
+      <h2 class="card-title text-base">Top products <span class="text-sm font-normal text-base-content/60">{{ breakdown_label }}</span></h2>
+      {% if brand %}<a class="link link-primary text-sm" href="{% url 'catalog:product_list' brand.slug %}">All products</a>{% endif %}
+    </div>
+    {% include "reports/_products_table.html" with rows=top_products %}
+  </div>
+</section>
+
+{{ chart|json_script:"monthly-chart-data" }}
+{% endblock %}
+
+{% block scripts %}
+<script>renderComparisonChart("monthly-chart", "monthly-chart-data", "bar");</script>
+{% endblock %}

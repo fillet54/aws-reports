@@ -1,0 +1,18 @@
+@import "tailwindcss";
+@source "../templates";
+@source "../apps";
+@source "../static/js";
+@plugin "daisyui" { themes: corporate --default, business --prefersdark; }
+
+/* Small additions on top of Tailwind + daisyUI. */
+.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+th[data-sort] { cursor: pointer; user-select: none; }
+th[data-sort]:hover { color: var(--color-primary); }
+th[data-sort][data-dir="asc"]::after { content: " ▲"; font-size: .7em; }
+th[data-sort][data-dir="desc"]::after { content: " ▼"; font-size: .7em; }
+.chart-box { position: relative; height: 18rem; }
+@media print {
+  header.navbar, .no-print { display: none !important; }
+  body { background: white; }
+  .card { box-shadow: none !important; border: 1px solid #ddd; }
+}

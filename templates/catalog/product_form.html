@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{% if is_new %}Add ASIN{% else %}{{ product.asin }}{% endif %}{% endblock %}
+{% block content %}
+<div class="max-w-2xl">
+  <a href="{% url 'catalog:product_list' brand.slug %}" class="link link-hover text-sm">← {{ brand.name }} products</a>
+  <h1 class="text-2xl font-bold mt-1">{% if is_new %}Add ASIN{% else %}{{ product.display_title }}{% endif %}</h1>
+  {% if product.amazon_title %}<p class="text-sm text-base-content/60 mb-4">Amazon: {{ product.amazon_title }}</p>{% endif %}
+  <form method="post" class="card bg-base-100 shadow-sm mt-4"><div class="card-body">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next }}">
+    <div class="grid md:grid-cols-2 gap-x-4">
+      {% include "_field.html" with field=form.asin %}
+      {% include "_field.html" with field=form.sku %}
+    </div>
+    {% include "_field.html" with field=form.title %}
+    <div class="grid md:grid-cols-3 gap-x-4">
+      {% include "_field.html" with field=form.category %}
+      {% include "_field.html" with field=form.unit_cost %}
+      {% include "_field.html" with field=form.launch_date %}
+    </div>
+    {% include "_field.html" with field=form.notes %}
+    <div class="card-actions justify-between mt-4">
+      <div>{% if not is_new %}<button form="delete-form" class="btn btn-ghost text-error" type="submit">Delete</button>{% endif %}</div>
+      <button class="btn btn-primary" type="submit">Save</button>
+    </div>
+  </div></form>
+  {% if not is_new %}
+  <form id="delete-form" method="post" action="{% url 'catalog:product_delete' brand.slug product.asin %}" onsubmit="return confirm('Delete this product? Its sales stay; only the name and notes are removed.');">{% csrf_token %}</form>
+  {% endif %}
+</div>
+{% endblock %}

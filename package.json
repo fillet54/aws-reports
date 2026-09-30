@@ -1,0 +1,14 @@
+{
+  "name": "aws-reports-frontend",
+  "private": true,
+  "scripts": {
+    "build": "tailwindcss -i frontend/app.css -o static/css/app.css --minify && sed '/sourceMappingURL/d' node_modules/chart.js/dist/chart.umd.min.js > static/vendor/chart.umd.min.js",
+    "watch": "tailwindcss -i frontend/app.css -o static/css/app.css --watch"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.0",
+    "chart.js": "^4.4.0",
+    "daisyui": "^5.0.0",
+    "tailwindcss": "^4.1.0"
+  }
+}

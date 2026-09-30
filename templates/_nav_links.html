@@ -1,0 +1,20 @@
+{% with url_name=request.resolver_match.url_name ns=request.resolver_match.namespace %}
+{% if user.is_employee %}
+  {% if brand %}
+  <li><a href="{% url 'reports:brand_dashboard' brand.slug %}" class="{% if url_name == 'brand_dashboard' %}menu-active{% endif %}">Dashboard</a></li>
+  <li><a href="{% url 'reports:brand_report' brand.slug %}" class="{% if url_name == 'brand_report' %}menu-active{% endif %}">Reports</a></li>
+  <li><a href="{% url 'catalog:product_list' brand.slug %}" class="{% if ns == 'catalog' and 'product' in url_name %}menu-active{% endif %}">Products</a></li>
+  {% else %}
+  <li><a href="{% url 'reports:overview' %}" class="{% if url_name == 'overview' %}menu-active{% endif %}">Dashboard</a></li>
+  <li><a href="{% url 'reports:overview_report' %}" class="{% if url_name == 'overview_report' %}menu-active{% endif %}">Reports</a></li>
+  {% endif %}
+  <li><a href="{% url 'reports:shared_list' %}" class="{% if url_name == 'shared_list' %}menu-active{% endif %}">Shared links</a></li>
+  <li><a href="{% url 'catalog:brand_list' %}" class="{% if ns == 'catalog' and 'brand' in url_name %}menu-active{% endif %}">Brands</a></li>
+  <li><a href="{% url 'accounts:user_list' %}" class="{% if ns == 'accounts' %}menu-active{% endif %}">Users</a></li>
+{% elif user.brand %}
+  <li><a href="{% url 'reports:brand_dashboard' user.brand.slug %}" class="{% if url_name == 'brand_dashboard' %}menu-active{% endif %}">Dashboard</a></li>
+  <li><a href="{% url 'reports:brand_report' user.brand.slug %}" class="{% if url_name == 'brand_report' %}menu-active{% endif %}">Reports</a></li>
+  <li><a href="{% url 'catalog:product_list' user.brand.slug %}" class="{% if url_name == 'product_list' %}menu-active{% endif %}">Products</a></li>
+  <li><a href="{% url 'reports:shared_list' %}" class="{% if url_name == 'shared_list' %}menu-active{% endif %}">Shared links</a></li>
+{% endif %}
+{% endwith %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{% if is_new %}New user{% else %}{{ target.username }}{% endif %}{% endblock %}
+{% block content %}
+<div class="max-w-2xl">
+  <a href="{% url 'accounts:user_list' %}" class="link link-hover text-sm">← Users</a>
+  <h1 class="text-2xl font-bold mb-4 mt-1">{% if is_new %}New user{% else %}Edit {{ target.username }}{% endif %}</h1>
+  <form method="post" class="card bg-base-100 shadow-sm"><div class="card-body">
+    {% csrf_token %}
+    <div class="grid md:grid-cols-2 gap-x-4">
+      {% include "_form_fields.html" %}
+    </div>
+    <div class="card-actions justify-end mt-4">
+      <a href="{% url 'accounts:user_list' %}" class="btn btn-ghost">Cancel</a>
+      <button class="btn btn-primary" type="submit">{% if is_new %}Create user{% else %}Save{% endif %}</button>
+    </div>
+  </div></form>
+</div>
+<script>
+  // Only show the brand picker for client users.
+  (function () {
+    const role = document.getElementById("id_role");
+    const brand = document.getElementById("id_brand");
+    if (!role || !brand) return;
+    const box = brand.closest("fieldset");
+    const sync = () => { box.style.display = role.value === "client" ? "" : "none"; };
+    role.addEventListener("change", sync);
+    sync();
+  })();
+</script>
+{% endblock %}

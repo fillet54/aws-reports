@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load report_tags %}
+{% block title %}{{ period.label }}{% endblock %}
+
+{% block content %}
+<div class="flex flex-wrap items-end justify-between gap-4 mb-4">
+  <div>
+    <p class="text-sm text-base-content/60">{% if brand %}{{ brand.name }}{% else %}All brands{% endif %}{% if current_store %} · {{ current_store.name }}{% endif %}</p>
+    <h1 class="text-2xl font-bold">{{ period.label }}</h1>
+    <p class="text-sm text-base-content/60">{{ period.range_label }}</p>
+  </div>
+  <div class="flex flex-wrap items-center gap-2 no-print">
+    {% include "reports/_store_tabs.html" %}
+    <form method="post" action="{% url 'reports:share_create' %}">
+      {% csrf_token %}
+      <input type="hidden" name="brand" value="{{ brand.slug|default:'' }}">
+      <input type="hidden" name="store" value="{{ current_store.code|default:'' }}">
+      <input type="hidden" name="period" value="{{ period.kind }}">
+      <input type="hidden" name="start" value="{{ period.start|date:'Y-m-d' }}">
+      <button class="btn btn-sm btn-primary" type="submit" title="Create a link whose numbers stay fixed until someone refreshes it">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+        Share frozen link
+      </button>
+    </form>
+  </div>
+</div>
+
+<div class="flex flex-wrap items-center gap-2 mb-6 no-print">
+  <div class="join">
+    <a class="join-item btn btn-sm {% if period.kind == 'week' %}btn-active{% endif %}" href="{% querystring period='week' date=None %}">Weekly</a>
+    <a class="join-item btn btn-sm {% if period.kind == 'month' %}btn-active{% endif %}" href="{% querystring period='month' date=None %}">Monthly</a>
+  </div>
+  <div class="join">
+    <a class="join-item btn btn-sm" href="{% querystring date=prev_period.start|date:'Y-m-d' %}">← Previous</a>
+    <form method="get" class="join-item">
+      <input type="hidden" name="period" value="{{ period.kind }}">
+      {% if current_store %}<input type="hidden" name="store" value="{{ current_store.code }}">{% endif %}
+      <input type="date" name="date" value="{{ period.start|date:'Y-m-d' }}" class="input input-sm join-item" onchange="this.form.submit()" aria-label="Jump to date">
+    </form>
+    {% if period.next.start <= today %}
+    <a class="join-item btn btn-sm" href="{% querystring date=period.next.start|date:'Y-m-d' %}">Next →</a>
+    {% else %}
+    <span class="join-item btn btn-sm btn-disabled">Next →</span>
+    {% endif %}
+  </div>
+  <span class="text-xs text-base-content/60 ml-auto">{% if last_synced %}Live data · synced {{ last_synced|timesince }} ago{% endif %}</span>
+</div>
+
+{% include "reports/_period_report.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script>renderComparisonChart("daily-chart", "daily-chart-data", "bar");</script>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% load report_tags %}
+<div class="grid gap-6 {% if brand_rows %}xl:grid-cols-2{% endif %}">
+  {% if brand_rows %}
+  <section class="card bg-base-100 shadow-sm">
+    <div class="card-body p-5">
+      <h2 class="card-title text-base">By brand <span class="text-sm font-normal text-base-content/60">{{ breakdown_label }}</span></h2>
+      <div class="overflow-x-auto">
+        <table class="table table-sm" data-sortable>
+          <thead><tr><th data-sort="text">Brand</th><th data-sort="number" class="num">Orders</th><th data-sort="number" class="num">Units</th><th data-sort="number" class="num">Sales</th><th data-sort="number" class="num">vs LY</th></tr></thead>
+          <tbody>
+          {% for row in brand_rows %}
+            <tr class="hover:bg-base-200">
+              <td><a class="link link-hover font-medium" href="{% url 'reports:brand_dashboard' row.brand.slug %}{% if current_store %}?store={{ current_store.code }}{% endif %}">{{ row.brand.name }}</a></td>
+              <td class="num">{{ row.orders }}</td>
+              <td class="num">{{ row.units }}</td>
+              <td class="num" data-value="{{ row.sales }}">{{ row.sales|money:currency }}</td>
+              <td class="num" data-value="{{ row.sales_change|default_if_none:'' }}">{% change row.sales_change True %}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if store_rows %}
+  <section class="card bg-base-100 shadow-sm">
+    <div class="card-body p-5">
+      <h2 class="card-title text-base">By store <span class="text-sm font-normal text-base-content/60">{{ breakdown_label }}</span></h2>
+      <div class="overflow-x-auto">
+        <table class="table table-sm">
+          <thead><tr><th>Store</th><th class="num">Orders</th><th class="num">Units</th><th class="num">Sales</th><th class="num">Last year</th><th class="num">vs LY</th></tr></thead>
+          <tbody>
+          {% for row in store_rows %}
+            <tr class="hover:bg-base-200">
+              <td>{% if shared %}<span class="font-medium">{{ row.marketplace.name }}</span>{% else %}<a class="link link-hover font-medium" href="{% querystring store=row.marketplace.code %}">{{ row.marketplace.name }}</a>{% endif %}</td>
+              <td class="num">{{ row.orders }}</td>
+              <td class="num">{{ row.units }}</td>
+              <td class="num">{{ row.sales|money:row.marketplace.currency }}</td>
+              <td class="num text-base-content/60">{{ row.prev.sales|money:row.marketplace.currency }}</td>
+              <td class="num">{% change row.sales_change True %}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="text-xs text-base-content/60">Each store in its own currency.</p>
+    </div>
+  </section>
+  {% endif %}
+</div>

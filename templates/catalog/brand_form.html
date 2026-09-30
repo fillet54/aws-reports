@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}{% if is_new %}New brand{% else %}{{ brand.name }} settings{% endif %}{% endblock %}
+{% block content %}
+<a href="{% url 'catalog:brand_list' %}" class="link link-hover text-sm">← Brands</a>
+<h1 class="text-2xl font-bold mb-4 mt-1">{% if is_new %}New brand{% else %}{{ brand.name }} settings{% endif %}</h1>
+
+<div class="grid gap-6 lg:grid-cols-3">
+  <form method="post" class="card bg-base-100 shadow-sm lg:col-span-2"><div class="card-body">
+    {% csrf_token %}
+    <h2 class="card-title text-base">Details</h2>
+    <div class="grid md:grid-cols-2 gap-x-4">
+      {% include "_field.html" with field=form.name %}
+      {% include "_field.html" with field=form.slug %}
+    </div>
+    {% include "_field.html" with field=form.marketplaces %}
+    <div class="divider my-2">Amazon SP-API</div>
+    <div class="grid md:grid-cols-2 gap-x-4">
+      {% include "_field.html" with field=form.selling_partner_id %}
+      {% include "_field.html" with field=form.refresh_token %}
+    </div>
+    {% if brand.has_refresh_token %}
+    <p class="text-sm text-success">A refresh token is stored for this brand.</p>
+    {% include "_field.html" with field=form.clear_refresh_token %}
+    {% endif %}
+    {% include "_field.html" with field=form.sync_enabled %}
+    {% if form.non_field_errors %}<div class="alert alert-error alert-soft">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="card-actions justify-end mt-4">
+      <button class="btn btn-primary" type="submit">{% if is_new %}Create brand{% else %}Save{% endif %}</button>
+    </div>
+  </div></form>
+
+  {% if not is_new %}
+  <div class="space-y-6">
+    <div class="card bg-base-100 shadow-sm"><div class="card-body">
+      <h2 class="card-title text-base">Sync from Amazon</h2>
+      <p class="text-sm text-base-content/70">
+        Last synced: {% if brand.last_synced_at %}{{ brand.last_synced_at|date:"M j, g:i A" }} ({{ brand.last_synced_at|timesince }} ago){% else %}never{% endif %}.
+        The background worker syncs every hour.
+      </p>
+      <form method="post" action="{% url 'catalog:brand_sync' brand.slug %}">
+        {% csrf_token %}
+        <button class="btn btn-sm btn-primary" type="submit">Sync now</button>
+      </form>
+    </div></div>
+
+    <div class="card bg-base-100 shadow-sm"><div class="card-body">
+      <h2 class="card-title text-base">Upload a report</h2>
+      <p class="text-sm text-base-content/70">Fallback for files exported by hand from Seller Central.</p>
+      <form method="post" enctype="multipart/form-data" action="{% url 'catalog:brand_upload' brand.slug %}" class="space-y-2">
+        {% csrf_token %}
+        {{ upload_form.report_file }}
+        <button class="btn btn-sm" type="submit">Upload</button>
+      </form>
+    </div></div>
+  </div>
+  {% endif %}
+</div>
+
+{% if not is_new %}
+<div class="grid gap-6 lg:grid-cols-2 mt-6">
+  <div class="card bg-base-100 shadow-sm"><div class="card-body p-5">
+    <h2 class="card-title text-base">Recent syncs</h2>
+    <div class="overflow-x-auto"><table class="table table-sm">
+      <thead><tr><th>Started</th><th>Source</th><th>Status</th><th class="num">Changed orders</th></tr></thead>
+      <tbody>
+      {% for run in sync_runs %}
+        <tr><td class="text-sm">{{ run.started_at|date:"M j, g:i A" }}</td><td>{{ run.client }}</td>
+          <td>{% if run.status == "success" %}<span class="badge badge-success badge-soft badge-sm">OK</span>{% elif run.status == "failed" %}<span class="badge badge-error badge-soft badge-sm" title="{{ run.message }}">Failed</span>{% else %}<span class="badge badge-sm">Running</span>{% endif %}</td>
+          <td class="num">{{ run.new_versions }}</td></tr>
+      {% empty %}<tr><td colspan="4" class="text-base-content/60">No syncs yet.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+  </div></div>
+  <div class="card bg-base-100 shadow-sm"><div class="card-body p-5">
+    <h2 class="card-title text-base">Raw reports</h2>
+    <p class="text-xs text-base-content/60">Every file is kept, and only orders that changed are recorded again.</p>
+    <div class="overflow-x-auto"><table class="table table-sm">
+      <thead><tr><th>Fetched</th><th>Source</th><th class="num">Rows</th><th class="num">Changed orders</th></tr></thead>
+      <tbody>
+      {% for r in raw_reports %}
+        <tr><td class="text-sm">{{ r.fetched_at|date:"M j, g:i A" }}</td><td>{{ r.get_source_display }}</td><td class="num">{{ r.row_count }}</td><td class="num">{{ r.new_versions }}</td></tr>
+      {% empty %}<tr><td colspan="4" class="text-base-content/60">No reports yet.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+  </div></div>
+</div>
+{% endif %}
+{% endblock %}

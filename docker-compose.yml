@@ -1,0 +1,45 @@
+# Web app + hourly Amazon sync worker + PostgreSQL.
+#
+#   cp .env.example .env   # then edit secrets
+#   docker compose up -d --build
+#   docker compose exec web python manage.py createsuperuser
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: reports
+      POSTGRES_USER: reports
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-reports}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://reports:${POSTGRES_PASSWORD:-reports}@db:5432/reports
+    ports:
+      - "8080:8080"
+    volumes:
+      - appdata:/data
+    depends_on:
+      - db
+
+  worker:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://reports:${POSTGRES_PASSWORD:-reports}@db:5432/reports
+    volumes:
+      - appdata:/data
+    depends_on:
+      - web
+    command: ["python", "manage.py", "sync_amazon", "--every", "3600"]
+
+volumes:
+  pgdata:
+  appdata:

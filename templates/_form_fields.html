@@ -1,0 +1,6 @@
+{% if form.non_field_errors %}
+<div role="alert" class="alert alert-error alert-soft mb-2">
+  {% for error in form.non_field_errors %}<span>{{ error }}</span>{% endfor %}
+</div>
+{% endif %}
+{% for field in form %}{% include "_field.html" %}{% endfor %}
