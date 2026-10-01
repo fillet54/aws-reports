@@ -16,3 +16,6 @@ th[data-sort][data-dir="desc"]::after { content: " ▼"; font-size: .7em; }
   body { background: white; }
   .card { box-shadow: none !important; border: 1px solid #ddd; }
 }
+
+/* Let wide tables scroll inside their card instead of widening the page. */
+.card, .card-body, .card-body > * { min-width: 0; }
