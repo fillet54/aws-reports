@@ -87,6 +87,28 @@ python manage.py sync_performance --days 90 --only ads  # backfill one source
 python manage.py sync_performance --every 21600         # what the worker runs (every 6 hours)
 ```
 
+## Verifying the Amazon integration on a real brand
+
+Once a brand has its SP-API (and optionally Ads API) token saved, run:
+
+```bash
+python manage.py verify_amazon <brand-slug> --save-dir verify-output
+python manage.py verify_amazon <brand-slug> --only ads --slow   # also probe the ads history limits
+python manage.py verify_amazon <brand-slug> --client dummy       # try it out without Amazon
+```
+
+It calls the real APIs through the same code the syncs use and checks each assumption the app makes. It prints a checklist (✓ pass, ! warn, ✗ fail, – skipped, i check by hand) and exits with an error if anything fails.
+
+| Group | What it checks |
+|---|---|
+| orders | The token works. The report has every column we read. `sales-channel` values map to US/CA. Dates parse. Pending orders have no price. Shows an order with quantity > 1 so you can confirm `item-price` is the line total. |
+| traffic (per store) | The Brand Analytics role is granted. Every field we read is present. One row per day. How many days late the data arrives. `averageOfferCount` value, to compare with Seller Central. Cross-checks our order data against Amazon's daily units and sales, which tests the `item-price` and time-zone assumptions. |
+| subscriptions (per store) | The Replenishment API answers. Daily `activeSubscriptions` come back. Data delay. |
+| ads (per store) | The Ads token works. A seller profile exists for each store, in the right currency. SP/SB/SD reports accept our report types and columns. With `--slow`, history really goes back 95/95/60 days. |
+| dsp (per store) | The configured advertiser accepts our report. Rows have `date`, `totalCost`, `totalSales`. |
+
+It writes nothing to the database except the advertising profile IDs it looks up. `--save-dir` keeps every raw response, which is the quickest way to fix a parser if Amazon's format differs from what we expect.
+
 ## Loading saved exports
 
 Your saved "All Orders" exports are the same report the SP-API sync downloads. Loading them is a way to fill the database with real history and test it before the API is connected.

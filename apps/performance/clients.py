@@ -154,12 +154,16 @@ class AmazonPerformanceClient:
             credentials["profile_id"] = str(profile_id)
         return credentials
 
-    def discover_profiles(self, brand: Brand) -> dict[str, str]:
-        """Advertising profile ID per store code (seller accounts only)."""
+    def list_ads_profiles(self, brand: Brand) -> list[dict]:
+        """Every advertising profile the brand's Ads token can see, as Amazon returns them."""
         from ad_api.api import Profiles
         from ad_api.base import Marketplaces
 
-        profiles = Profiles(credentials=self._ads_credentials(brand), marketplace=Marketplaces.NA).list_profiles().payload
+        return Profiles(credentials=self._ads_credentials(brand), marketplace=Marketplaces.NA).list_profiles().payload
+
+    def discover_profiles(self, brand: Brand) -> dict[str, str]:
+        """Advertising profile ID per store code (seller accounts only)."""
+        profiles = self.list_ads_profiles(brand)
         return {
             p["countryCode"]: str(p["profileId"])
             for p in profiles
@@ -288,6 +292,13 @@ class DummyPerformanceClient:
 
     def effective_start(self, kind: str, start: date) -> date:
         return start
+
+    def list_ads_profiles(self, brand):
+        return [
+            {"profileId": 1000 + i, "countryCode": m.code, "currencyCode": m.currency,
+             "accountInfo": {"type": "seller", "id": f"DUMMY{i}"}}
+            for i, m in enumerate(brand.marketplaces.all())
+        ]
 
     def _day_orders(self, brand, marketplace, day):
         catalog = self.orders.catalog(brand)
