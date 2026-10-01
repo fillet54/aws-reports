@@ -95,7 +95,10 @@ def decode_report(content: bytes) -> str:
 
 
 def parse_rows(text: str) -> list[dict[str, str]]:
-    reader = csv.DictReader(io.StringIO(text), delimiter="\t")
+    # Amazon's flat files are tab separated; a re-saved spreadsheet may be commas.
+    header = text.split("\n", 1)[0]
+    delimiter = "\t" if "\t" in header else ","
+    reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
     if not reader.fieldnames or "amazon-order-id" not in reader.fieldnames:
         raise ValueError("Not an Amazon orders report: missing 'amazon-order-id' column.")
     rows = []
@@ -199,7 +202,7 @@ def ingest_report(
         report.save(update_fields=["new_versions"])
         _ensure_products(brand, rows)
 
-    logger.info(
+    logger.debug(
         "Ingested %s for %s: %d rows, %d orders, %d new versions",
         report.get_source_display(), brand.slug, len(rows), len(by_order), report.new_versions,
     )

@@ -86,7 +86,7 @@ def brand_upload(request, slug: str):
         result = ingest_report(
             brand,
             upload.read(),
-            source=RawReport.Source.UPLOAD,
+            source=RawReport.Source.EXPORT,
             fetched_at=timezone.now(),
             original_filename=upload.name,
         )

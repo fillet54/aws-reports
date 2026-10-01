@@ -9,7 +9,7 @@ from apps.sales.models import OrderLine, OrderVersion, RawReport
 
 from .conftest import at, make_report
 
-UPLOAD = RawReport.Source.UPLOAD
+UPLOAD = RawReport.Source.EXPORT
 
 
 def ingest(brand, content, when):

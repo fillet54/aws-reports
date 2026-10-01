@@ -1,15 +1,24 @@
+"""
+Load a folder of saved Seller Central "All Orders" exports for one brand.
+
+Files are imported oldest first, as if each had just been downloaded from
+Amazon at that time, so order history (Pending -> Shipped, cancellations)
+builds up the same way the hourly API sync will build it.
+"""
+
 import re
 from datetime import datetime, timezone
 from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
+from django.utils.text import slugify
 
-from apps.catalog.models import Brand
+from apps.catalog.models import Brand, Marketplace
 from apps.sales.ingest import decode_report, ingest_report, parse_datetime, parse_rows
 from apps.sales.models import RawReport
 
-# Files archived by the old Flask app are named "20250101T120000Z__original.txt".
-ARCHIVE_STAMP = re.compile(r"^(\d{8}T\d{6}Z)__")
+# A timestamp at the start of a file name, e.g. "20250101T120000Z__orders.txt".
+NAME_STAMP = re.compile(r"^(\d{8}T\d{6}Z)")
 REPORT_SUFFIXES = {".txt", ".tsv", ".csv", ".gz"}
 
 
@@ -17,12 +26,12 @@ def fetched_at_for(path: Path) -> tuple[datetime, str]:
     """
     When the data in a file was current, and how we know:
 
-    1. the old app's archive timestamp in the file name,
+    1. a timestamp at the start of the file name,
     2. otherwise the newest last-updated-date inside the file (the export
        can't be older than that),
     3. otherwise the file's modification time.
     """
-    match = ARCHIVE_STAMP.match(path.name)
+    match = NAME_STAMP.match(path.name)
     if match:
         return datetime.strptime(match.group(1), "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc), "file name"
     try:
@@ -52,25 +61,39 @@ def collect_files(paths: list[Path]) -> list[Path]:
 
 class Command(BaseCommand):
     help = (
-        "Import Amazon 'All Orders' flat-file reports for a brand, oldest first. "
+        "Import saved Seller Central 'All Orders' exports for a brand, oldest first. "
         "Accepts files or folders. Files already imported are skipped, so you can "
         "step through a folder with --limit 1 and look at the app between runs."
     )
 
     def add_arguments(self, parser):
-        parser.add_argument("brand", help="Brand slug.")
-        parser.add_argument("paths", nargs="+", type=Path, help="Report files or folders of them.")
+        parser.add_argument("brand", help="Brand slug, e.g. acme.")
+        parser.add_argument("paths", nargs="+", type=Path, help="Export files or folders of them.")
         parser.add_argument("--limit", type=int, help="Import at most this many new files, then stop.")
+        parser.add_argument(
+            "--create",
+            metavar="NAME",
+            help="Create the brand with this display name (US and CA stores) if it doesn't exist.",
+        )
 
-    def handle(self, *args, brand, paths, limit, **options):
-        try:
-            brand_obj = Brand.objects.get(slug=brand)
-        except Brand.DoesNotExist:
-            raise CommandError(f"No brand with slug {brand!r}.")
-        import_files(self, brand_obj, collect_files(paths), RawReport.Source.UPLOAD, limit=limit)
+    def handle(self, *args, brand, paths, limit, create, **options):
+        brand_obj = Brand.objects.filter(slug=brand).first()
+        if brand_obj is None:
+            if not create:
+                raise CommandError(f"No brand with slug {brand!r}. Add --create \"Brand Name\" to create it.")
+            if slugify(brand) != brand:
+                raise CommandError(f"{brand!r} isn't a valid slug; try {slugify(brand)!r}.")
+            brand_obj = Brand.objects.create(slug=brand, name=create)
+            brand_obj.marketplaces.set(Marketplace.objects.all())
+            self.stdout.write(f"Created brand {create} ({brand}).")
+
+        files = collect_files(paths)
+        if not files:
+            raise CommandError("No .txt/.tsv/.csv/.gz files found.")
+        import_files(self, brand_obj, files, limit=limit)
 
 
-def import_files(command, brand, files, source, limit=None):
+def import_files(command, brand, files, limit=None):
     dated = sorted(((fetched_at_for(p), p) for p in files), key=lambda item: item[0][0])
     imported = skipped = failed = 0
     for (fetched_at, how), path in dated:
@@ -80,7 +103,7 @@ def import_files(command, brand, files, source, limit=None):
             result = ingest_report(
                 brand,
                 path.read_bytes(),
-                source=source,
+                source=RawReport.Source.EXPORT,
                 fetched_at=fetched_at,
                 original_filename=path.name,
             )

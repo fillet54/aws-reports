@@ -1,7 +1,5 @@
-"""Tools for loading real Seller Central exports and checking them against the old app."""
+"""Loading a folder of saved Seller Central exports with `import_report`."""
 
-import json
-import sqlite3
 from io import StringIO
 
 import pytest
@@ -29,26 +27,52 @@ def run(*args) -> str:
 def test_folder_import_is_oldest_first_and_steps_with_limit(acme, tmp_path):
     exports = tmp_path / "raw"
     (exports / "april").mkdir(parents=True)
-    # No archive timestamp in the names: dates come from last-updated-date inside.
-    (exports / "april" / "later.txt").write_bytes(make_report(ORDER_A_SHIPPED, ORDER_B))
-    (exports / "earlier.txt").write_bytes(make_report(ORDER_A))
+    # Dates come from last-updated-date inside each file, not from the names.
+    (exports / "april" / "a-later.txt").write_bytes(make_report(ORDER_A_SHIPPED, ORDER_B))
+    (exports / "z-earlier.txt").write_bytes(make_report(ORDER_A))
     (exports / "notes.md").write_text("not a report")
 
     first = run("import_report", "acme", str(exports), "--limit", "1")
-    assert "earlier.txt" in first and "later.txt" not in first
+    assert "z-earlier.txt" in first and "a-later.txt" not in first
     assert "1 new, 0 changed" in first and "not checked yet" in first
 
     second = run("import_report", "acme", str(exports), "--limit", "1")
-    assert "later.txt" in second
+    assert "a-later.txt" in second
     assert "1 new, 1 changed, 0 unchanged" in second
 
     third = run("import_report", "acme", str(exports))
     assert "imported 0, already imported 2" in third
 
     reports = RawReport.objects.order_by("fetched_at")
-    assert [r.original_filename for r in reports] == ["earlier.txt", "later.txt"]
+    assert [r.original_filename for r in reports] == ["z-earlier.txt", "a-later.txt"]
     assert reports[1].fetched_at.isoformat() == "2025-04-04T09:00:00+00:00"
     assert OrderVersion.objects.get(amazon_order_id="111-A", is_current=True).order_status == "Shipped"
+
+
+def test_timestamp_in_file_name_wins(acme, tmp_path):
+    (tmp_path / "20250410T080000Z__orders.txt").write_bytes(make_report(ORDER_B))
+    output = run("import_report", "acme", str(tmp_path))
+    assert "from file name" in output
+    assert RawReport.objects.get().fetched_at.isoformat() == "2025-04-10T08:00:00+00:00"
+
+
+def test_comma_separated_csv_is_accepted(acme, tmp_path):
+    tsv = make_report(ORDER_B).decode()
+    (tmp_path / "orders.csv").write_text(tsv.replace("\t", ","))
+    run("import_report", "acme", str(tmp_path))
+    assert OrderVersion.objects.filter(amazon_order_id="702-B").exists()
+
+
+def test_create_brand_on_first_load(db, us, ca, tmp_path):
+    (tmp_path / "orders.txt").write_bytes(make_report(ORDER_B))
+    with pytest.raises(CommandError, match="--create"):
+        run("import_report", "initech", str(tmp_path))
+
+    output = run("import_report", "initech", str(tmp_path), "--create", "Initech")
+    assert "Created brand Initech" in output
+    brand = Brand.objects.get(slug="initech")
+    assert set(brand.marketplaces.values_list("code", flat=True)) == {"US", "CA"}
+    assert Product.objects.filter(brand=brand, asin="B000000002").exists()
 
 
 def test_bad_file_is_reported_and_others_still_import(acme, tmp_path):
@@ -57,52 +81,3 @@ def test_bad_file_is_reported_and_others_still_import(acme, tmp_path):
     output = run("import_report", "acme", str(tmp_path))
     assert "missing 'amazon-order-id'" in output
     assert "imported 1" in output and "failed 1" in output
-
-
-def make_legacy_dir(tmp_path, orders):
-    data = tmp_path / "old"
-    brand_dir = data / "brands" / "acme"
-    (brand_dir / "archive").mkdir(parents=True)
-    (data / "brands.json").write_text(json.dumps([{"id": "acme", "name": "Acme"}]))
-    (brand_dir / "archive" / "20250401T120000Z__week1.txt").write_bytes(make_report(ORDER_A))
-    (brand_dir / "archive" / "20250405T120000Z__week2.txt").write_bytes(make_report(ORDER_A_SHIPPED, ORDER_B))
-
-    conn = sqlite3.connect(brand_dir / "orders.sqlite")
-    conn.execute("CREATE TABLE orders (amazon_order_id TEXT, purchase_date TEXT, sales_channel TEXT, quantity INTEGER, item_price REAL)")
-    conn.executemany("INSERT INTO orders VALUES (?, ?, ?, ?, ?)", orders)
-    conn.execute("CREATE TABLE asin_meta (asin TEXT PRIMARY KEY, title_override TEXT, brand TEXT, category TEXT, subcategory TEXT, cost REAL, launch_date TEXT, notes TEXT)")
-    conn.execute("INSERT INTO asin_meta VALUES ('B000000001', 'Hero Serum', NULL, 'Skin', NULL, 4.5, NULL, NULL)")
-    conn.commit()
-    conn.close()
-    return data
-
-
-# What the old app's database holds after importing the same two files.
-LEGACY_ORDERS = [
-    ("111-A", "2025-03-31 23:30:00", "Amazon.com", 1, 25.0),
-    ("702-B", "2025-04-03 12:00:00", "Amazon.ca", 2, 40.0),
-]
-
-
-def test_import_legacy_then_compare_matches(db, us, ca, tmp_path):
-    data = make_legacy_dir(tmp_path, LEGACY_ORDERS)
-    run("import_legacy", str(data))
-
-    brand = Brand.objects.get(slug="acme")
-    assert Product.objects.get(brand=brand, asin="B000000001").title == "Hero Serum"
-    assert RawReport.objects.filter(brand=brand, source="legacy").count() == 2
-
-    output = run("compare_legacy", str(data))
-    assert "All totals match." in output
-    # Grouped in UTC like the old app: the Mar 31 23:30 UTC order stays in March.
-    assert "2025-03" in output
-
-
-def test_compare_legacy_reports_differences(db, us, ca, tmp_path):
-    data = make_legacy_dir(tmp_path, LEGACY_ORDERS + [("111-C", "2025-04-10 10:00:00", "Amazon.com", 1, 9.99)])
-    run("import_legacy", str(data))
-
-    out = StringIO()
-    with pytest.raises(CommandError, match="1 month/channel"):
-        call_command("compare_legacy", str(data), "--details", stdout=out)
-    assert "only in old app: 111-C" in out.getvalue()

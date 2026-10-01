@@ -49,7 +49,7 @@ Run the tests with `pytest`.
   2. Paste each brand's refresh token and selling partner ID under **Brands → Settings**. Tokens are stored encrypted.
   3. The sync requests `GET_FLAT_FILE_ALL_ORDERS_DATA_BY_LAST_UPDATE_GENERAL` for the brand's marketplaces.
   - This path hasn't been tested against Amazon yet.
-- **Manual upload**: Brands → Settings → Upload a report. This takes the same "All Orders" flat file you export from Seller Central.
+- **Saved Seller Central exports**: load a folder from the command line (see below), or upload a single file under Brands → Settings.
 
 Commands:
 
@@ -57,37 +57,26 @@ Commands:
 python manage.py sync_amazon                     # one sync of every enabled brand
 python manage.py sync_amazon --every 3600        # keep syncing hourly (what the worker runs)
 python manage.py sync_amazon --backfill-days 400 # load history by order date
-python manage.py import_report <brand-slug> <files or folders> [--limit 1]
-python manage.py import_legacy ~/.local/share/aws-reporting   # from the old Flask app
-python manage.py compare_legacy ~/.local/share/aws-reporting  # check totals match the old app
+python manage.py import_report <brand-slug> <folder> [--create "Brand Name"] [--limit 1]
 ```
 
-## Testing with real Seller Central exports
+## Loading saved exports
 
-The manual "All Orders" exports use the same format the SP-API sync downloads, so the saved exports are a good way to test the pipeline with real data.
-
-**Option 1: everything from the old app at once**
+Your saved "All Orders" exports are the same report the SP-API sync downloads. Loading them is a way to fill the database with real history and test it before the API is connected.
 
 ```bash
-python manage.py import_legacy ~/.local/share/aws-reporting    # brands, product names, all archived files
-python manage.py compare_legacy ~/.local/share/aws-reporting --details
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py import_report acme ~/exports/acme --create "Acme Beauty"
 ```
 
-- `compare_legacy` compares monthly orders, units and sales per sales channel with the old app's `orders.sqlite`.
-- It groups by UTC month, like the old app did, so the numbers should match exactly.
-- With `--details`, a month that doesn't match lists the order IDs that only one side has.
-- The command exits with an error if anything differs.
-
-**Option 2: one file at a time, watching the app in between**
-
-```bash
-python manage.py import_report <brand-slug> path/to/raw/folder --limit 1
-```
-
-- Files are imported oldest first. Folders are searched recursively for `.txt/.tsv/.csv/.gz` files.
-- Files already imported are skipped, so running the command again imports the next one.
-- Each file prints how many orders were **new**, **changed** (e.g. Pending → Shipped) or **unchanged** since the previous file.
-- Each file's date comes from the old app's archive timestamp in the file name if there is one. Otherwise it's the newest `last-updated-date` inside the file, and failing that, the file's modification time.
+- **Brand:** `--create` makes the brand, with the US and CA stores, the first time. Leave it off once the brand exists.
+- **Order:** files are imported oldest first, as if each one had just been downloaded at that time. That way changes between exports (Pending → Shipped, cancellations) build up the same way the hourly sync records them.
+- **Dates:** each file is dated by a timestamp at the start of its name if there is one (e.g. `20250101T120000Z__orders.txt`). Otherwise the newest `last-updated-date` inside the file is used, and failing that, the file's modification time.
+- **Files:** folders are searched recursively for `.txt`, `.tsv`, `.csv` and `.gz` files. Both tab-separated (Amazon's format) and comma-separated files work.
+- **Re-running:** files already imported are skipped, so it's safe to run again after adding new exports.
+- **One file at a time:** `--limit 1` imports just the next file, so you can look at the app between files.
+- **Output:** for each file, it prints how many orders were **new**, **changed** or **unchanged** compared with the earlier files.
 
 ## Front-end
 
@@ -123,7 +112,3 @@ docker compose exec web python manage.py createsuperuser
 | `FIELD_ENCRYPTION_KEY` | derived from secret key | Fernet key for refresh tokens |
 | `AMAZON_CLIENT` | `dummy` | `dummy` or `sp_api` |
 | `REPORT_TIME_ZONE` | `America/Los_Angeles` | Day/week/month boundaries and displayed times |
-
-## Legacy Flask app
-
-`aws_reports/` is the previous Flask version, kept for comparison until the new app has been checked against it. `import_legacy` brings its brands, product names and archived report files into the new app. After that, the folder can be deleted.

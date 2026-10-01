@@ -17,8 +17,7 @@ class RawReport(models.Model):
     class Source(models.TextChoices):
         SP_API = "sp_api", "Amazon SP-API"
         DUMMY = "dummy", "Dummy Amazon client"
-        UPLOAD = "upload", "Manual upload"
-        LEGACY = "legacy", "Legacy import"
+        EXPORT = "export", "Seller Central export"
 
     brand = models.ForeignKey("catalog.Brand", on_delete=models.CASCADE, related_name="raw_reports")
     source = models.CharField(max_length=16, choices=Source.choices)

@@ -48,7 +48,7 @@ def test_upload_report(employee_client, acme):
 
     upload = SimpleUploadedFile("orders.txt", make_report({"amazon-order-id": "111-1", "asin": "B000000001"}))
     employee_client.post(reverse("catalog:brand_upload", args=["acme"]), {"report_file": upload})
-    assert RawReport.objects.filter(brand=acme, source="upload").count() == 1
+    assert RawReport.objects.filter(brand=acme, source="export").count() == 1
 
 
 def test_shared_link_is_frozen_until_refreshed(employee_client, acme):
@@ -57,7 +57,7 @@ def test_shared_link_is_frozen_until_refreshed(employee_client, acme):
     purchase = (now - timedelta(hours=1)).isoformat()
 
     ingest_report(acme, make_report({"amazon-order-id": "111-1", "asin": "B000000001", "purchase-date": purchase, "item-price": "10.00"}),
-                  source="upload", fetched_at=now - timedelta(minutes=30))
+                  source="export", fetched_at=now - timedelta(minutes=30))
 
     response = employee_client.post(reverse("reports:share_create"), {"brand": "acme", "period": "month", "start": day.isoformat()})
     shared = SharedReport.objects.get()
@@ -68,7 +68,7 @@ def test_shared_link_is_frozen_until_refreshed(employee_client, acme):
 
     # New data arrives after the link was made.
     ingest_report(acme, make_report({"amazon-order-id": "111-2", "asin": "B000000001", "purchase-date": purchase, "item-price": "50.00"}),
-                  source="upload", fetched_at=timezone.now() + timedelta(seconds=1))
+                  source="export", fetched_at=timezone.now() + timedelta(seconds=1))
     assert employee_client.get(shared.get_absolute_url()).context["summary"]["current"]["orders"] == 1
 
     shared.data_cutoff = timezone.now() + timedelta(seconds=2)  # refresh, avoiding same-instant ties
