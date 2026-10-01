@@ -9,6 +9,7 @@ urlpatterns = [
     path("manage/brands/new/", views.brand_create, name="brand_create"),
     path("manage/brands/<slug:slug>/", views.brand_edit, name="brand_edit"),
     path("manage/brands/<slug:slug>/sync/", views.brand_sync, name="brand_sync"),
+    path("manage/brands/<slug:slug>/sync-performance/", views.brand_sync_performance, name="brand_sync_performance"),
     path("manage/brands/<slug:slug>/upload/", views.brand_upload, name="brand_upload"),
     path("b/<slug:slug>/products/", views.product_list, name="product_list"),
     path("b/<slug:slug>/products/new/", views.product_create, name="product_create"),

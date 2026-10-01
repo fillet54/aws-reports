@@ -8,6 +8,7 @@ Sales reporting for multiple Amazon brands (one seller account per brand), acros
 - **Dashboards** for all brands or a single brand. Each can show all stores or just US or CA.
 - **Weekly and monthly reports** compare against the previous period and the same period last year.
 - **Frozen share links**: "Share frozen link" on a report creates a URL whose numbers stay fixed until someone presses **Refresh data**. It's the Monday report you can send around.
+- **Performance dashboard**: sales, units, search and DSP ad sales and cost, TACOS, sessions, conversion, offer count and Subscribe & Save subscriptions. Columns are Yesterday, Last 7 Days, Month-to-Date and Year-to-Date, each compared with last year.
 - **Products are keyed by ASIN.** They're created automatically from order data, and you can edit the names used in reports.
 - **Amazon data is append-only.** Every downloaded report is kept, and a new version of an order is stored only when it changes. Nothing is deleted, so reports can always be rebuilt from the raw data.
 
@@ -19,7 +20,7 @@ pip install -e ".[dev]"
 
 export DJANGO_DEBUG=1
 python manage.py migrate
-python manage.py seed_demo      # 3 demo brands, fake order history, demo users
+python manage.py seed_demo      # 3 demo brands, fake history for orders, traffic, ads and S&S, demo users
 python manage.py runserver
 ```
 
@@ -60,6 +61,32 @@ python manage.py sync_amazon --backfill-days 400 # load history by order date
 python manage.py import_report <brand-slug> <folder> [--create "Brand Name"] [--limit 1]
 ```
 
+## Performance data (traffic, ads, Subscribe & Save)
+
+The performance dashboard combines several Amazon sources:
+
+| Rows | Source | Amazon access needed |
+|---|---|---|
+| Sales, Units | Order reports (above) | SP-API, Inventory and Order Tracking role |
+| Sessions, Conversion, Total Offer Count | SP-API Sales and Traffic report (`sessions`, units ÷ sessions, `averageOfferCount`) | SP-API **Brand Analytics** role |
+| S&S Sub Count | SP-API Replenishment API (`ACTIVE_SUBSCRIPTIONS`) | SP-API **Brand Analytics** role |
+| Search Ad Sales / Cost | Amazon Ads API v3 reports: Sponsored Products (7-day attribution) + Brands + Display (14-day) | Separate Ads API app; each brand's ads account authorizes it |
+| DSP Ad Sales / Cost | Amazon Ads API DSP reports | As above, plus access to the brand's DSP advertiser |
+| TACOS | Total ad cost ÷ sales | |
+
+- **Setup:** set `AMAZON_ADS_CLIENT_ID` / `AMAZON_ADS_CLIENT_SECRET`. On **Brands → Settings**, paste each brand's Ads API refresh token. Advertising profiles for US and CA are looked up automatically. If the brand runs DSP, add its DSP advertiser IDs (`US=…, CA=…`).
+- **Storage:** each response is kept as a `DataPull`. The daily tables (`DailyTraffic`, `DailyAds`, `DailySubscriptions`) hold the latest value for each day, because Amazon revises recent days. Each sync re-requests the last 7 days of traffic and S&S data and the last 14 days of ads.
+- **History limits:** Amazon only serves sponsored ads for about the last 95 days (Sponsored Display 60) and DSP for 90. Year-to-date and last-year ad numbers therefore build up from the day syncing starts. Connect the Ads API early.
+- **Missing or partial data:** traffic arrives about two days late. The dashboard shows "—" when a source has no data for a period, and `*` when it only covers part of the period.
+- **Independent sources:** each source syncs on its own. A brand without Brand Analytics or without DSP still gets everything else.
+- **Untested:** the real-API code has been written against Amazon's published definitions but not run against Amazon yet. The dummy client returns data in the same shapes.
+
+```bash
+python manage.py sync_performance                       # trailing window for every brand
+python manage.py sync_performance --days 90 --only ads  # backfill one source
+python manage.py sync_performance --every 21600         # what the worker runs (every 6 hours)
+```
+
 ## Loading saved exports
 
 Your saved "All Orders" exports are the same report the SP-API sync downloads. Loading them is a way to fill the database with real history and test it before the API is connected.
@@ -91,7 +118,7 @@ npm run build        # or: npm run watch
 
 ```bash
 cp .env.example .env          # set DJANGO_SECRET_KEY, FIELD_ENCRYPTION_KEY, hosts…
-docker compose up -d --build  # Postgres + web (gunicorn) + hourly sync worker
+docker compose up -d --build  # Postgres + web (gunicorn) + order and performance sync workers
 docker compose exec web python manage.py createsuperuser
 ```
 
@@ -110,5 +137,6 @@ docker compose exec web python manage.py createsuperuser
 | `DATABASE_URL` | SQLite in `DATA_DIR` | e.g. `postgres://user:pass@host/db` |
 | `DATA_DIR` | `./var` | SQLite DB and raw report files |
 | `FIELD_ENCRYPTION_KEY` | derived from secret key | Fernet key for refresh tokens |
-| `AMAZON_CLIENT` | `dummy` | `dummy` or `sp_api` |
+| `AMAZON_CLIENT` | `dummy` | `dummy` or `sp_api` (applies to orders and performance data) |
+| `AMAZON_ADS_CLIENT_ID` / `AMAZON_ADS_CLIENT_SECRET` | | Amazon Ads API app |
 | `REPORT_TIME_ZONE` | `America/Los_Angeles` | Day/week/month boundaries and displayed times |

@@ -4,6 +4,8 @@ from django.core.management.base import BaseCommand
 
 from apps.accounts.models import User
 from apps.catalog.models import Brand, Marketplace
+from apps.performance.clients import DummyPerformanceClient
+from apps.performance.sync import sync_performance
 from apps.sales.amazon import DummyAmazonClient
 from apps.sales.sync import backfill_brand, sync_brand
 
@@ -15,7 +17,7 @@ DEMO_BRANDS = [
 
 
 class Command(BaseCommand):
-    help = "Create demo brands, users and fake order history (development only)."
+    help = "Create demo brands, users and fake history for orders, traffic, ads and S&S (development only)."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -32,10 +34,14 @@ class Command(BaseCommand):
         for name, slug in DEMO_BRANDS:
             brand, created = Brand.objects.get_or_create(slug=slug, defaults={"name": name})
             brand.marketplaces.set(marketplaces)
+            if slug == "northwind":
+                brand.dsp_advertisers = "US=DEMO-DSP-1"  # one demo brand runs DSP
+                brand.save(update_fields=["dsp_advertisers"])
             if created or not brand.raw_reports.exists():
                 self.stdout.write(f"Loading {days} days of history for {name}…")
                 backfill_brand(brand, days, client, simulate_history=True)
                 sync_brand(brand, client)
+                sync_performance(brand, DummyPerformanceClient(), days=days)
             else:
                 self.stdout.write(f"{name} already has data; skipping.")
 

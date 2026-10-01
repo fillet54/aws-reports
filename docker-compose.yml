@@ -1,4 +1,4 @@
-# Web app + hourly Amazon sync worker + PostgreSQL.
+# Web app + hourly order sync + 6-hourly traffic/ads/S&S sync + PostgreSQL.
 #
 #   cp .env.example .env   # then edit secrets
 #   docker compose up -d --build
@@ -39,6 +39,19 @@ services:
     depends_on:
       - web
     command: ["python", "manage.py", "sync_amazon", "--every", "3600"]
+
+  performance-worker:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://reports:${POSTGRES_PASSWORD:-reports}@db:5432/reports
+    volumes:
+      - appdata:/data
+    depends_on:
+      - web
+    # Traffic, ads and S&S change slowly; every 6 hours is plenty.
+    command: ["python", "manage.py", "sync_performance", "--every", "21600"]
 
 volumes:
   pgdata:

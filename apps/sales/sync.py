@@ -56,7 +56,9 @@ def sync_brand(
     if since is None:
         since = (brand.last_synced_at - OVERLAP) if brand.last_synced_at else now - FIRST_SYNC_LOOKBACK
 
-    run = SyncRun.objects.create(brand=brand, client=client.name, window_start=since, window_end=now)
+    run = SyncRun.objects.create(
+        brand=brand, kind=SyncRun.Kind.ORDERS, client=client.name, window_start=since, window_end=now
+    )
     result = SyncResult()
     try:
         for start, end in _windows(since, now):

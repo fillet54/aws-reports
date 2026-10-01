@@ -13,10 +13,17 @@ class BrandForm(StyledFormMixin, forms.ModelForm):
         help_text="Stored encrypted. Leave blank to keep the current token.",
     )
     clear_refresh_token = forms.BooleanField(label="Remove stored refresh token", required=False)
+    ads_refresh_token = forms.CharField(
+        label="Ads API refresh token",
+        required=False,
+        widget=forms.PasswordInput(render_value=False, attrs={"autocomplete": "off"}),
+        help_text="For sponsored ads and DSP. Stored encrypted. Leave blank to keep the current token.",
+    )
+    clear_ads_refresh_token = forms.BooleanField(label="Remove stored Ads API token", required=False)
 
     class Meta:
         model = Brand
-        fields = ["name", "slug", "marketplaces", "selling_partner_id", "sync_enabled"]
+        fields = ["name", "slug", "marketplaces", "selling_partner_id", "dsp_advertisers", "sync_enabled"]
         widgets = {"marketplaces": forms.CheckboxSelectMultiple}
         help_texts = {"marketplaces": "Stores this brand sells in."}
 
@@ -27,6 +34,13 @@ class BrandForm(StyledFormMixin, forms.ModelForm):
             brand.set_refresh_token("")
         elif token:
             brand.set_refresh_token(token.strip())
+        ads_token = self.cleaned_data.get("ads_refresh_token")
+        if self.cleaned_data.get("clear_ads_refresh_token"):
+            brand.set_ads_refresh_token("")
+            brand.ads_profiles = {}
+        elif ads_token:
+            brand.set_ads_refresh_token(ads_token.strip())
+            brand.ads_profiles = {}  # rediscovered on the next sync
         if commit:
             brand.save()
             self.save_m2m()

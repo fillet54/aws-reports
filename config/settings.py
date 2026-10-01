@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "apps.catalog",
     "apps.sales",
     "apps.reports",
+    "apps.performance",
 ]
 
 MIDDLEWARE = [
@@ -146,6 +147,10 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AMAZON_CLIENT = env("AMAZON_CLIENT", "dummy")
 SP_API_LWA_APP_ID = env("SP_API_LWA_APP_ID", "")
 SP_API_LWA_CLIENT_SECRET = env("SP_API_LWA_CLIENT_SECRET", "")
+
+# Amazon Ads API app (sponsored ads and DSP), registered separately from SP-API.
+AMAZON_ADS_CLIENT_ID = env("AMAZON_ADS_CLIENT_ID", "")
+AMAZON_ADS_CLIENT_SECRET = env("AMAZON_ADS_CLIENT_SECRET", "")
 
 # Key used to encrypt per-brand refresh tokens at rest. Falls back to a key
 # derived from SECRET_KEY; set it explicitly in production so rotating

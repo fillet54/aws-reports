@@ -55,6 +55,20 @@ class Brand(models.Model):
     )
     last_synced_at = models.DateTimeField(null=True, blank=True, editable=False)
 
+    # Amazon Ads API (sponsored ads and DSP) is authorized separately from SP-API.
+    ads_refresh_token_encrypted = models.TextField(blank=True, editable=False)
+    ads_profiles = models.JSONField(
+        default=dict, blank=True, editable=False,
+        help_text="Advertising profile ID per store code, discovered from the Ads API.",
+    )
+    dsp_advertisers = models.CharField(
+        "DSP advertiser IDs",
+        max_length=255,
+        blank=True,
+        help_text="Per store, e.g. US=5823901234, CA=6620194411. Leave blank if the brand doesn't run DSP.",
+    )
+    performance_synced_at = models.DateTimeField(null=True, blank=True, editable=False)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -78,6 +92,31 @@ class Brand(models.Model):
         if not self.refresh_token_encrypted:
             return ""
         return crypto.decrypt(self.refresh_token_encrypted)
+
+    @property
+    def has_ads_token(self) -> bool:
+        return bool(self.ads_refresh_token_encrypted)
+
+    def set_ads_refresh_token(self, token: str) -> None:
+        self.ads_refresh_token_encrypted = crypto.encrypt(token) if token else ""
+
+    def get_ads_refresh_token(self) -> str:
+        if not self.ads_refresh_token_encrypted:
+            return ""
+        return crypto.decrypt(self.ads_refresh_token_encrypted)
+
+    def dsp_advertiser_map(self) -> dict[str, str]:
+        """Parse dsp_advertisers ("US=123, CA=456"; a bare ID means US) into {store code: ID}."""
+        result = {}
+        for part in self.dsp_advertisers.replace(";", ",").split(","):
+            part = part.strip()
+            if not part:
+                continue
+            code, sep, advertiser = part.partition("=")
+            if not sep:
+                code, advertiser = "US", code
+            result[code.strip().upper()] = advertiser.strip()
+        return result
 
 
 asin_validator = RegexValidator(

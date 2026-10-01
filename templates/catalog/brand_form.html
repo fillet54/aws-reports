@@ -22,6 +22,13 @@
     <p class="text-sm text-success">A refresh token is stored for this brand.</p>
     {% include "_field.html" with field=form.clear_refresh_token %}
     {% endif %}
+    <div class="divider my-2">Amazon Ads API</div>
+    {% include "_field.html" with field=form.ads_refresh_token %}
+    {% if brand.has_ads_token %}
+    <p class="text-sm text-success">An Ads API token is stored for this brand.{% if brand.ads_profiles %} Advertising profiles: {% for code, profile in brand.ads_profiles.items %}{{ code }} {{ profile }}{% if not forloop.last %}, {% endif %}{% endfor %}.{% endif %}</p>
+    {% include "_field.html" with field=form.clear_ads_refresh_token %}
+    {% endif %}
+    {% include "_field.html" with field=form.dsp_advertisers %}
     {% include "_field.html" with field=form.sync_enabled %}
     {% if form.non_field_errors %}<div class="alert alert-error alert-soft">{{ form.non_field_errors }}</div>{% endif %}
     <div class="card-actions justify-end mt-4">
@@ -35,12 +42,19 @@
       <h2 class="card-title text-base">Sync from Amazon</h2>
       <p class="text-sm text-base-content/70">
         Last synced: {% if brand.last_synced_at %}{{ brand.last_synced_at|date:"M j, g:i A" }} ({{ brand.last_synced_at|timesince }} ago){% else %}never{% endif %}.
-        The background worker syncs every hour.
+        Orders sync every hour.
       </p>
-      <form method="post" action="{% url 'catalog:brand_sync' brand.slug %}">
-        {% csrf_token %}
-        <button class="btn btn-sm btn-primary" type="submit">Sync now</button>
-      </form>
+      <div class="flex flex-wrap gap-2">
+        <form method="post" action="{% url 'catalog:brand_sync' brand.slug %}">
+          {% csrf_token %}
+          <button class="btn btn-sm btn-primary" type="submit">Sync orders</button>
+        </form>
+        <form method="post" action="{% url 'catalog:brand_sync_performance' brand.slug %}">
+          {% csrf_token %}
+          <button class="btn btn-sm" type="submit">Sync traffic, ads &amp; S&amp;S</button>
+        </form>
+      </div>
+      <p class="text-xs text-base-content/60">Traffic, ads and Subscribe &amp; Save last synced: {% if brand.performance_synced_at %}{{ brand.performance_synced_at|timesince }} ago{% else %}never{% endif %}.</p>
     </div></div>
 
     <div class="card bg-base-100 shadow-sm"><div class="card-body">
@@ -61,10 +75,10 @@
   <div class="card bg-base-100 shadow-sm"><div class="card-body p-5">
     <h2 class="card-title text-base">Recent syncs</h2>
     <div class="overflow-x-auto"><table class="table table-sm">
-      <thead><tr><th>Started</th><th>Source</th><th>Status</th><th class="num">Changed orders</th></tr></thead>
+      <thead><tr><th>Started</th><th>Data</th><th>Status</th><th class="num">Changed</th></tr></thead>
       <tbody>
       {% for run in sync_runs %}
-        <tr><td class="text-sm">{{ run.started_at|date:"M j, g:i A" }}</td><td>{{ run.client }}</td>
+        <tr><td class="text-sm">{{ run.started_at|date:"M j, g:i A" }}</td><td class="text-sm">{{ run.get_kind_display }} <span class="text-base-content/50">({{ run.client }})</span></td>
           <td>{% if run.status == "success" %}<span class="badge badge-success badge-soft badge-sm">OK</span>{% elif run.status == "failed" %}<span class="badge badge-error badge-soft badge-sm" title="{{ run.message }}">Failed</span>{% else %}<span class="badge badge-sm">Running</span>{% endif %}</td>
           <td class="num">{{ run.new_versions }}</td></tr>
       {% empty %}<tr><td colspan="4" class="text-base-content/60">No syncs yet.</td></tr>{% endfor %}

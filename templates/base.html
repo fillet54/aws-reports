@@ -39,10 +39,10 @@
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
         </div>
         <ul tabindex="0" class="menu dropdown-content bg-base-100 rounded-box z-40 mt-2 w-60 p-2 shadow max-h-96 overflow-y-auto flex-nowrap">
-          <li><a href="{% url 'reports:overview' %}" class="{% if scope.all_brands %}menu-active{% endif %}">All brands</a></li>
+          <li><a href="{% if request.resolver_match.namespace == 'performance' %}{% url 'performance:overview' %}{% else %}{% url 'reports:overview' %}{% endif %}" class="{% if scope.all_brands %}menu-active{% endif %}">All brands</a></li>
           <li class="menu-title">Brands</li>
           {% for b in nav_brands %}
-          <li><a href="{% url 'reports:brand_dashboard' b.slug %}" class="{% if brand and brand.pk == b.pk %}menu-active{% endif %}">{{ b.name }}</a></li>
+          <li><a href="{% if request.resolver_match.namespace == 'performance' %}{% url 'performance:brand' b.slug %}{% else %}{% url 'reports:brand_dashboard' b.slug %}{% endif %}" class="{% if brand and brand.pk == b.pk %}menu-active{% endif %}">{{ b.name }}</a></li>
           {% endfor %}
         </ul>
       </div>

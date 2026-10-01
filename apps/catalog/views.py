@@ -7,6 +7,7 @@ from django.views.decorators.http import require_POST
 from apps.accounts.access import employee_required, get_brand_for_user
 from apps.sales.ingest import ingest_report
 from apps.sales.models import RawReport
+from apps.performance.sync import sync_performance
 from apps.sales.sync import sync_brand
 
 from .forms import BrandForm, ProductForm, UploadReportForm
@@ -50,7 +51,7 @@ def brand_edit(request, slug: str):
             "is_new": False,
             "brand": brand,
             "upload_form": UploadReportForm(),
-            "sync_runs": brand.sync_runs.all()[:10],
+            "sync_runs": brand.sync_runs.all()[:12],
             "raw_reports": brand.raw_reports.all()[:10],
         },
     )
@@ -69,6 +70,19 @@ def brand_sync(request, slug: str):
             request,
             f"Synced {brand.name}: {result.reports} report(s), {result.new_versions} new or changed order(s).",
         )
+    return redirect("catalog:brand_edit", slug=brand.slug)
+
+
+@employee_required
+@require_POST
+def brand_sync_performance(request, slug: str):
+    brand = get_object_or_404(Brand, slug=slug)
+    result = sync_performance(brand)
+    parts = [f"{kind}: {days} day(s)" for kind, days in result.days.items()]
+    parts += [f"{kind} skipped ({why})" for kind, why in result.skipped.items()]
+    if result.failed:
+        messages.error(request, "Failed: " + "; ".join(f"{k}: {v}" for k, v in result.failed.items()))
+    messages.success(request, f"Synced {brand.name}. " + "; ".join(parts))
     return redirect("catalog:brand_edit", slug=brand.slug)
 
 

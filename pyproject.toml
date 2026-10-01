@@ -19,6 +19,7 @@ dependencies = [
   "cryptography>=43",
   "psycopg[binary]>=3.2",
   "python-amazon-sp-api>=1.8",
+  "python-amazon-ad-api>=0.6",
 ]
 
 [project.optional-dependencies]

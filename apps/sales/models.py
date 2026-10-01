@@ -109,12 +109,20 @@ class OrderLine(models.Model):
 
 
 class SyncRun(models.Model):
+    class Kind(models.TextChoices):
+        ORDERS = "orders", "Orders"
+        TRAFFIC = "traffic", "Sales & traffic"
+        ADS = "ads", "Sponsored ads"
+        DSP = "dsp", "DSP"
+        SUBSCRIPTIONS = "subscriptions", "Subscribe & Save"
+
     class Status(models.TextChoices):
         RUNNING = "running", "Running"
         SUCCESS = "success", "Success"
         FAILED = "failed", "Failed"
 
     brand = models.ForeignKey("catalog.Brand", on_delete=models.CASCADE, related_name="sync_runs")
+    kind = models.CharField(max_length=16, choices=Kind.choices, default=Kind.ORDERS)
     client = models.CharField(max_length=16)
     window_start = models.DateTimeField()
     window_end = models.DateTimeField()

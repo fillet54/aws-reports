@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% load report_tags %}
+{% block title %}Performance · {% if brand %}{{ brand.name }}{% else %}All brands{% endif %}{% endblock %}
+
+{% block content %}
+<div class="flex flex-wrap items-end justify-between gap-4 mb-6">
+  <div>
+    <p class="text-sm text-base-content/60">Performance</p>
+    <h1 class="text-2xl font-bold">
+      {% if brand %}{{ brand.name }}{% else %}All brands{% endif %}
+      <span class="text-base-content/50 font-normal">· 3P · {% if current_store %}{{ current_store.name }}{% else %}All Marketplaces{% endif %}</span>
+    </h1>
+    <p class="text-xs text-base-content/60 mt-1">
+      {% if scope.converts_currency %}All currencies converted to USD{% else %}Amounts in {{ currency }}{% endif %}
+      · Through {{ yesterday|date:"D M j, Y" }} · Compared with the same period last year
+    </p>
+  </div>
+  {% include "reports/_store_tabs.html" %}
+</div>
+
+<section class="card bg-base-100 shadow-sm">
+  <div class="card-body p-0">
+    <div class="overflow-x-auto">
+      <table class="table table-sm">
+        <thead>
+          <tr class="align-bottom">
+            <th class="sticky left-0 bg-base-100 z-10 min-w-44"></th>
+            {% for col in columns %}
+            <th class="num min-w-32">
+              <div class="text-base-content font-semibold text-sm">{{ col.label }}</div>
+              <div class="font-normal text-xs text-base-content/50">{% if col.start == col.end %}{{ col.start|date:"M j" }}{% else %}{{ col.start|date:"M j" }} – {{ col.end|date:"M j" }}{% endif %}</div>
+              <div class="font-normal text-xs text-base-content/40">vs Last Year</div>
+            </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr class="group hover:bg-base-200 {% if row.spec.key == 'total_ad_sales' or row.spec.key == 'total_ad_cost' %}font-semibold{% endif %} {% if row.spec.key == 'search_ad_sales' or row.spec.key == 'sessions' or row.spec.key == 'tacos' %}border-t-2 border-base-300{% endif %}">
+            <th class="sticky left-0 bg-base-100 group-hover:bg-base-200 z-10 font-medium text-sm">
+              <span {% if row.spec.help %}class="tooltip tooltip-right underline decoration-dotted decoration-base-content/30 underline-offset-4" data-tip="{{ row.spec.help }}"{% endif %}>{{ row.spec.label }}</span>
+            </th>
+            {% for cell in row.cells %}
+            <td class="num" title="Last year: {% metric cell.ly_value row.spec.fmt currency %}">
+              <div class="tabular-nums text-sm">{% metric cell.value row.spec.fmt currency %}{% if cell.state == "partial" %}<sup class="text-warning">*</sup>{% endif %}</div>
+              <div>{% perf_change cell row.spec.tone %}</div>
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<div class="grid gap-4 md:grid-cols-2 mt-6 text-sm">
+  <div class="card bg-base-100 shadow-sm"><div class="card-body p-5 gap-2">
+    <h2 class="font-semibold">Data available through</h2>
+    <ul class="text-base-content/70 space-y-1">
+      <li>Orders (sales, units): synced hourly</li>
+      <li>Sales &amp; traffic report (sessions, conversion, offers): {{ coverage.traffic|date:"M j"|default:"not connected" }}</li>
+      <li>Sponsored ads: {{ coverage.ads|date:"M j"|default:"not connected" }}</li>
+      <li>DSP: {{ coverage.dsp|date:"M j"|default:"not connected" }}</li>
+      <li>Subscribe &amp; Save: {{ coverage.subscriptions|date:"M j"|default:"not connected" }}</li>
+    </ul>
+    <p class="text-xs text-base-content/50"><span class="text-warning">*</span> The source doesn't cover the whole period yet; the value covers the days that have arrived. “—” means no data for the period.</p>
+  </div></div>
+  <div class="card bg-base-100 shadow-sm"><div class="card-body p-5 gap-2">
+    <h2 class="font-semibold">How these are calculated</h2>
+    <ul class="text-base-content/70 space-y-1">
+      <li><strong>TACOS</strong>: total advertising cost ÷ sales.</li>
+      <li><strong>Conversion</strong>: units ordered ÷ sessions, from the Sales &amp; traffic report.</li>
+      <li><strong>Search ads</strong>: Sponsored Products (7-day attribution) + Sponsored Brands + Sponsored Display (14-day). Recent days keep rising as late conversions are credited.</li>
+      <li><strong>S&amp;S Sub Count</strong>: active subscriptions on the last day of the period.</li>
+      <li>Yesterday and Last 7 Days compare with the same weekdays 52 weeks ago; month and year with the same dates last year.</li>
+    </ul>
+  </div></div>
+</div>
+{% endblock %}
